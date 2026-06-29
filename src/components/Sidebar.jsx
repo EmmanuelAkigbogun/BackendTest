@@ -53,7 +53,7 @@ function FolderTreeNode({ node, depth, activeFolder, expandedSet, onToggleExpand
         <svg width="14" height="14" viewBox="0 0 16 16" fill="none" style={{ flexShrink: 0 }}>
           <path d="M2 4a1 1 0 011-1h3.586a1 1 0 01.707.293L8 4h5a1 1 0 011 1v7a1 1 0 01-1 1H3a1 1 0 01-1-1V4z" fill={isActive ? 'var(--text-primary)' : 'var(--folder-icon-fill)'} />
         </svg>
-        <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{node.name}</span>
+        <span style={{ whiteSpace: 'nowrap' }}>{node.name}</span>
         <button
           onClick={e => { e.stopPropagation(); onDeleteFolder(node.id); }}
           className="sidebar-delete"

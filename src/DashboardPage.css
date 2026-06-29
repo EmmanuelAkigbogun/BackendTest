@@ -72,10 +72,24 @@
 }
 .sidebar-scroll {
   flex: 1;
-  overflow-y: auto;
+  overflow: auto;
   padding: 0 8px;
+  scrollbar-width: thin;
 }
-.sidebar-item {
+.sidebar-scroll::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+.sidebar-scroll::-webkit-scrollbar-thumb {
+  background: var(--border-subtle);
+  border-radius: 3px;
+}
+.sidebar-scroll::-webkit-scrollbar-track {
+  background: transparent;
+}
+.sidebar-scroll::-webkit-scrollbar-corner {
+  background: transparent;
+}.sidebar-item {
   display: flex;
   align-items: center;
   gap: 8px;
@@ -87,6 +101,8 @@
   color: var(--text-muted);
   transition: all 0.12s;
   text-decoration: none;
+  width: fit-content;
+  min-width: 100%;
 }
 .sidebar-item.active {
   color: var(--text-primary);
