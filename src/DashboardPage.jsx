@@ -59,7 +59,7 @@ function PreviewModal({ item, onClose }) {
 
   const renderContent = () => {
     if (displayType === 'image') return (
-      <img src={item.content} alt={item.file_name} style={{ maxWidth: '95vw', maxHeight: '90vh', objectFit: 'cover', borderRadius: 12 }} />
+      <img src={item.content} alt={item.file_name} style={{ maxWidth: '95vw', maxHeight: '90vh', objectFit: 'contain', borderRadius: 12 }} />
     );
     if (displayType === 'video') return (
       <video controls autoPlay style={{ maxWidth: '95vw', maxHeight: '90vh', borderRadius: 12 }}>
@@ -140,14 +140,10 @@ function MediaCard({ item, onDelete, onCopy, textContents, onPreview, onDownload
 
   const renderPreview = () => {
     if (displayType === 'image') return (
-      <div style={{ width: '100%', height: '100%', overflow: 'hidden' }}>
-        <img src={item.content} alt={item.file_name} style={{
-          width: '100%', display: 'block',
-          transition: 'transform 3s ease',
-          transformOrigin: 'top center',
-          transform: hovered ? `translateY(calc(-100% + ${previewH}px))` : 'translateY(0)',
-        }} />
-      </div>
+      <img src={item.content} alt={item.file_name} style={{
+        width: '100%', height: '100%', display: 'block',
+        objectFit: 'cover',
+      }}/>
     );
     if (displayType === 'video') return (
       <>
@@ -186,9 +182,9 @@ function MediaCard({ item, onDelete, onCopy, textContents, onPreview, onDownload
       return (
         <pre style={{
           width: '100%', height: '100%', margin: 0, padding: '14px 16px',
-          fontFamily: 'monospace', fontSize: 11, color: '#888',
-          lineHeight: 1.65, overflowY: 'auto', boxSizing: 'border-box',
-          background: 'rgba(0,0,0,0.03)', whiteSpace: 'pre-wrap', wordBreak: 'break-all',
+          fontFamily: 'monospace', fontSize: 12, color: '#555',
+          lineHeight: 1.7, overflowY: 'auto', boxSizing: 'border-box',
+          background: 'rgba(0,0,0,0.02)', whiteSpace: 'pre-wrap', wordBreak: 'break-word',
         }}>{content}</pre>
       );
     }
@@ -222,24 +218,17 @@ function MediaCard({ item, onDelete, onCopy, textContents, onPreview, onDownload
         padding: '10px 14px',
         borderTop: '1px solid rgba(0,0,0,0.04)',
       }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8, maxWidth: '100%' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
           <span style={{ fontSize: 9, fontWeight: 700, letterSpacing: '0.1em', padding: '3px 8px', borderRadius: 6, background: tm.bg, color: tm.color, flexShrink: 0 }}>{tm.label}</span>
           <span style={{ fontSize: 10, color: '#ccc', flexShrink: 0 }}>
             {new Date(item.created_at).toLocaleString(undefined, { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
           </span>
-          {(item.file_name || item.type === 'link') && (
-            <span style={{ fontSize: 11, color: '#b5aea8', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', minWidth: 0 }}>{item.type === 'link' ? item.content : item.file_name}</span>
+          {item.file_name && (
+            <span style={{ fontSize: 11, color: '#b5aea8', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', minWidth: 0 }}>{item.file_name}</span>
           )}
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-          <button onClick={() => onPreview(item)} className="card-action" style={{ background: 'rgba(0,0,0,0.04)', color: '#999' }}>Preview</button>
-          {item.type === 'link' && (
-            <button onClick={() => onCopy(item.content)} className="card-action" style={{ background: 'rgba(0,0,0,0.04)', color: '#999' }}>Copy URL</button>
-          )}
-          {item.type !== 'text' && item.type !== 'link' && (
-            <a href={item.content} target="_blank" rel="noreferrer" onClick={e => e.stopPropagation()} className="card-action" style={{ background: 'rgba(0,0,0,0.04)', color: '#999' }}>Open ↗</a>
-          )}
-          {item.type === 'link' && (
+          {item.type !== 'text' && (
             <a href={item.content} target="_blank" rel="noreferrer" onClick={e => e.stopPropagation()} className="card-action" style={{ background: 'rgba(0,0,0,0.04)', color: '#999' }}>Open ↗</a>
           )}
           {item.type === 'text' && (
@@ -247,12 +236,7 @@ function MediaCard({ item, onDelete, onCopy, textContents, onPreview, onDownload
           )}
           <button onClick={() => onDownload(item)} className="card-action" style={{ background: 'rgba(0,0,0,0.04)', color: '#999' }}>Download</button>
           <div style={{ flex: 1 }} />
-          <button onClick={() => onDelete(item)} className="card-action" style={{ background: 'rgba(200,80,60,0.08)', color: '#c85c3c', padding: '6px 10px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-            <svg width="14" height="14" viewBox="0 0 16 16" fill="none">
-              <path d="M2 4h12M5 4V2.5A.5.5 0 015.5 2h5a.5.5 0 01.5.5V4M4 4v9.5a1 1 0 001 1h6a1 1 0 001-1V4" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round" />
-              <path d="M6 7v5M10 7v5" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" />
-            </svg>
-          </button>
+          <button onClick={() => onDelete(item)} className="card-action" style={{ background: 'rgba(200,80,60,0.08)', color: '#c85c3c' }}>Delete</button>
         </div>
       </div>
     </div>
@@ -455,7 +439,6 @@ export default function DashboardPage({ session, onSignOut }) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [expandedSet, setExpandedSet] = useState(new Set());
   const [folderCounts, setFolderCounts] = useState({});
-  const [linkMode, setLinkMode] = useState(false);
   const fetchedRef = useRef({});
 
   const fetchHistory = async () => {
@@ -553,17 +536,12 @@ export default function DashboardPage({ session, onSignOut }) {
 
   const handleSend = async (e) => {
     e.preventDefault();
-    if (!message.trim() && !selectedFile && !linkMode) return;
-    if (linkMode && !message.trim()) return;
+    if (!message.trim() && !selectedFile) return;
     setLoading(true);
     try {
       const userId = session.user.id;
       let payload = { user_id: userId, type: 'text', content: message, file_name: null, folder_id: activeFolder };
-      if (linkMode) {
-        let url = message.trim();
-        if (!/^https?:\/\//i.test(url)) url = 'https://' + url;
-        payload = { ...payload, type: 'link', content: url, file_name: url };
-      } else if (selectedFile) {
+      if (selectedFile) {
         const fileExt = selectedFile.name.split('.').pop();
         const filePath = `${userId}/${crypto.randomUUID()}.${fileExt}`;
         const { error: ue } = await supabase.storage.from('uploads').upload(filePath, selectedFile);
@@ -573,7 +551,7 @@ export default function DashboardPage({ session, onSignOut }) {
       }
       const { error: de } = await supabase.from('history').insert([payload]);
       if (de) throw de;
-      setMessage(''); setSelectedFile(null); setLinkMode(false);
+      setMessage(''); setSelectedFile(null);
       document.getElementById('fileInput').value = '';
       fetchHistory();
     } catch (err) { alert(err.message); }
@@ -879,6 +857,7 @@ export default function DashboardPage({ session, onSignOut }) {
             margin-left: 220px;
           }
         }
+
       `}</style>
 
       {/* Sidebar */}
@@ -960,7 +939,7 @@ export default function DashboardPage({ session, onSignOut }) {
               <textarea
                 className="compose-textarea"
                 rows={3}
-                placeholder={linkMode ? "Paste a URL…" : (activeFolder ? `Add to ${activeFolderName}…` : "Write something, or attach a file below…")}
+                placeholder={activeFolder ? `Add to ${activeFolderName}…` : "Write something, or attach a file below…"}
                 value={message}
                 onChange={e => setMessage(e.target.value)}
                 onKeyDown={e => { if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') handleSend(e); }}
@@ -971,34 +950,17 @@ export default function DashboardPage({ session, onSignOut }) {
                 borderTop: '1px solid rgba(0,0,0,0.04)',
                 flexWrap: 'wrap', gap: 10,
               }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-                  <label htmlFor="fileInput" style={{ display: 'flex', alignItems: 'center', gap: 7, fontSize: 12, color: '#999', cursor: 'pointer', transition: 'color 0.15s' }}
-                    onMouseEnter={e => e.currentTarget.style.color = '#555'}
-                    onMouseLeave={e => e.currentTarget.style.color = '#999'}
-                  >
-                    <svg width="15" height="15" viewBox="0 0 16 16" fill="none">
-                      <path d="M8 2v9M5 5l3-3 3 3" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" />
-                      <path d="M2 11v2a1 1 0 001 1h10a1 1 0 001-1v-2" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" />
-                    </svg>
-                    {selectedFile ? selectedFile.name : 'Attach a file'}
-                  </label>
-                  <input id="fileInput" type="file" style={{ display: 'none' }} onChange={e => { setSelectedFile(e.target.files[0]); setLinkMode(false); }} />
-                  <button type="button" onClick={() => { setLinkMode(!linkMode); setSelectedFile(null); document.getElementById('fileInput').value = ''; }}
-                    className="card-action"
-                    style={{
-                      display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, padding: '5px 10px',
-                      background: linkMode ? 'rgba(52,211,153,0.15)' : 'rgba(0,0,0,0.04)',
-                      color: linkMode ? '#34d399' : '#999',
-                      border: 'none', borderRadius: 8, cursor: 'pointer', fontFamily: 'inherit', transition: 'all 0.15s',
-                    }}
-                  >
-                    <svg width="14" height="14" viewBox="0 0 16 16" fill="none">
-                      <path d="M7 9a3 3 0 015-3l1 1" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" />
-                      <path d="M9 7a3 3 0 01-5 3l-1-1" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" />
-                    </svg>
-                    Link
-                  </button>
-                </div>
+                <label htmlFor="fileInput" style={{ display: 'flex', alignItems: 'center', gap: 7, fontSize: 12, color: '#999', cursor: 'pointer', transition: 'color 0.15s' }}
+                  onMouseEnter={e => e.currentTarget.style.color = '#555'}
+                  onMouseLeave={e => e.currentTarget.style.color = '#999'}
+                >
+                  <svg width="15" height="15" viewBox="0 0 16 16" fill="none">
+                    <path d="M8 2v9M5 5l3-3 3 3" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" />
+                    <path d="M2 11v2a1 1 0 001 1h10a1 1 0 001-1v-2" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" />
+                  </svg>
+                  {selectedFile ? selectedFile.name : 'Attach a file'}
+                </label>
+                <input id="fileInput" type="file" style={{ display: 'none' }} onChange={e => setSelectedFile(e.target.files[0])} />
                 <button type="submit" disabled={loading} className="send-btn">
                   {loading ? 'Sending…' : 'Send entry'}
                 </button>
