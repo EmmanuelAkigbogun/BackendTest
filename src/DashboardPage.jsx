@@ -291,7 +291,7 @@ export default function DashboardPage({ session, onSignOut }) {
         </div>
 
         <main style={{ maxWidth: 960, margin: '0 auto', padding: '24px 28px 80px', width: '100%' }}>
-          <div style={{ fontSize: 18, fontWeight: 600, color: '#1a1a1a', marginBottom: 20 }}>
+          <div style={{ fontSize: 18, fontWeight: 600, color: '#1a1a1a', marginBottom: 20, textAlign: 'right' }}>
             {(activeFolder ? folders.find(f => f.id === activeFolder)?.name : 'All Items') || 'All Items'}
           </div>
 
