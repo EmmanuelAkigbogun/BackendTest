@@ -136,7 +136,7 @@ function MediaCard({ item, onDelete, onCopy, textContents, onPreview, onDownload
     willChange: 'transform',
   };
 
-  const previewH = displayType === 'text' ? 180 : 260;
+  const previewH = 260;
 
   const renderPreview = () => {
     if (displayType === 'image') return (
@@ -228,15 +228,30 @@ function MediaCard({ item, onDelete, onCopy, textContents, onPreview, onDownload
           )}
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+          <button onClick={() => onPreview(item)} className="card-action" style={{ background: 'rgba(0,0,0,0.04)', color: '#999', padding: '6px 10px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <svg width="13" height="13" viewBox="0 0 16 16" fill="none">
+              <path d="M1 8s2.5-5.5 7-5.5S15 8 15 8s-2.5 5.5-7 5.5S1 8 1 8z" stroke="currentColor" strokeWidth="1.3"/>
+              <circle cx="8" cy="8" r="2.5" stroke="currentColor" strokeWidth="1.3"/>
+            </svg>
+          </button>
           {item.type !== 'text' && (
             <a href={item.content} target="_blank" rel="noreferrer" onClick={e => e.stopPropagation()} className="card-action" style={{ background: 'rgba(0,0,0,0.04)', color: '#999' }}>Open ↗</a>
           )}
           {item.type === 'text' && (
             <button onClick={() => onCopy(item.content)} className="card-action" style={{ background: 'rgba(0,0,0,0.04)', color: '#999' }}>Copy</button>
           )}
-          <button onClick={() => onDownload(item)} className="card-action" style={{ background: 'rgba(0,0,0,0.04)', color: '#999' }}>Download</button>
+          {item.type === 'link' ? (
+            <button onClick={() => onCopy(item.content)} className="card-action" style={{ background: 'rgba(0,0,0,0.04)', color: '#999' }}>Copy URL</button>
+          ) : (
+            <button onClick={() => onDownload(item)} className="card-action" style={{ background: 'rgba(0,0,0,0.04)', color: '#999' }}>Download</button>
+          )}
           <div style={{ flex: 1 }} />
-          <button onClick={() => onDelete(item)} className="card-action" style={{ background: 'rgba(200,80,60,0.08)', color: '#c85c3c' }}>Delete</button>
+          <button onClick={() => onDelete(item)} className="card-action" style={{ background: 'rgba(200,80,60,0.08)', color: '#c85c3c', padding: '6px 10px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <svg width="14" height="14" viewBox="0 0 16 16" fill="none">
+              <path d="M2 4h12M5 4V2.5A.5.5 0 015.5 2h5a.5.5 0 01.5.5V4M4 4v9.5a1 1 0 001 1h6a1 1 0 001-1V4" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round"/>
+              <path d="M6 7v5M10 7v5" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round"/>
+            </svg>
+          </button>
         </div>
       </div>
     </div>
@@ -244,7 +259,7 @@ function MediaCard({ item, onDelete, onCopy, textContents, onPreview, onDownload
 }
 
 // ── Sidebar ────────────────────────────────────────────────────────────────────
-function Sidebar({ tree, activeFolder, onSelect, onNewFolder, onDeleteFolder, sidebarOpen, onClose, expandedSet, onToggleExpand }) {
+function Sidebar({ tree, activeFolder, onSelect, onNewFolder, onDeleteFolder, sidebarOpen, onClose, expandedSet, onToggleExpand, userEmail }) {
   const [name, setName] = useState('');
   const inputRef = useRef(null);
 
@@ -262,7 +277,10 @@ function Sidebar({ tree, activeFolder, onSelect, onNewFolder, onDeleteFolder, si
 
       <div className={`sidebar ${sidebarOpen ? 'open' : ''}`}>
         <div className="sidebar-header">
-          <div className="sidebar-title">Folders</div>
+          <div>
+            <div className="sidebar-title">Folders</div>
+            <div style={{ fontSize: 9, color: '#aaa', marginTop: 3, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: 150 }}>{userEmail}</div>
+          </div>
           <button className="sidebar-close" onClick={onClose}>✕</button>
         </div>
 
@@ -871,61 +889,64 @@ export default function DashboardPage({ session, onSignOut }) {
         onClose={() => setSidebarOpen(false)}
         expandedSet={expandedSet}
         onToggleExpand={toggleExpanded}
+        userEmail={session.user.email}
       />
 
       {/* Main */}
       <div className="main-content" style={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0, minHeight: '100vh' }}>
         {/* Header */}
-        <header style={{
-          display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-          padding: '14px 28px',
-          background: 'rgba(255,255,255,0.7)',
-          backdropFilter: 'blur(24px)',
-          borderBottom: '1px solid rgba(0,0,0,0.04)',
+        <div style={{
+          position: 'sticky', top: 0, zIndex: 100,
         }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-            <button className="hamburger" onClick={() => setSidebarOpen(true)}>
-              <svg width="18" height="18" viewBox="0 0 18 18" fill="none">
-                <path d="M2 5h14M2 9h14M2 13h14" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
-              </svg>
-            </button>
-            <div style={{
-              width: 28, height: 28, borderRadius: 8,
-              background: '#1a1a1a',
-              display: 'flex', alignItems: 'center', justifyContent: 'center',
-            }}>
-              <svg width="13" height="13" viewBox="0 0 14 14" fill="none">
-                <path d="M2 7h10M7 2v10" stroke="white" strokeWidth="1.8" strokeLinecap="round" />
-              </svg>
+          <header style={{
+            display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+            padding: '10px 18px',
+            background: 'rgba(255,255,255,0.75)',
+            backdropFilter: 'blur(24px)',
+            borderBottom: '1px solid rgba(0,0,0,0.04)',
+            flexWrap: 'wrap', gap: 8,
+          }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+              <button className="hamburger" onClick={() => setSidebarOpen(true)}>
+                <svg width="18" height="18" viewBox="0 0 18 18" fill="none">
+                  <path d="M2 5h14M2 9h14M2 13h14" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
+                </svg>
+              </button>
+              <div style={{
+                width: 26, height: 26, borderRadius: 7,
+                background: '#1a1a1a',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+              }}>
+                <svg width="12" height="12" viewBox="0 0 14 14" fill="none">
+                  <path d="M2 7h10M7 2v10" stroke="white" strokeWidth="1.8" strokeLinecap="round" />
+                </svg>
+              </div>
+              <div style={{ fontSize: 13, fontWeight: 600, color: '#1a1a1a', lineHeight: 1 }}>Folder</div>
             </div>
-            <div>
-              <div style={{ fontSize: 13, fontWeight: 600, color: '#1a1a1a', lineHeight: 1 }}>Portal</div>
-              <div style={{ fontSize: 10, color: '#999', marginTop: 1 }}>{session.user.email}</div>
-            </div>
-          </div>
 
-          {toast && (
-            <div style={{
-              position: 'absolute', left: '50%', transform: 'translateX(-50%)',
-              padding: '6px 18px', borderRadius: 999,
-              background: '#1a1a1a', color: 'white',
-              fontSize: 12, fontWeight: 500, backdropFilter: 'blur(8px)',
-              zIndex: 10,
-            }}>{toast}</div>
-          )}
+            {toast && (
+              <div style={{
+                position: 'absolute', left: '50%', transform: 'translateX(-50%)',
+                padding: '6px 18px', borderRadius: 999,
+                background: '#1a1a1a', color: 'white',
+                fontSize: 12, fontWeight: 500, backdropFilter: 'blur(8px)',
+                zIndex: 10,
+              }}>{toast}</div>
+            )}
 
-          <button
-            onClick={onSignOut}
-            style={{
-              fontSize: 12, color: '#999', background: 'none',
-              border: '1px solid rgba(0,0,0,0.08)',
-              borderRadius: 8, padding: '6px 14px', cursor: 'pointer',
-              fontFamily: 'inherit', transition: 'color 0.15s',
-            }}
-            onMouseEnter={e => e.target.style.color = '#333'}
-            onMouseLeave={e => e.target.style.color = '#999'}
-          >Sign out</button>
-        </header>
+            <button
+              onClick={onSignOut}
+              style={{
+                fontSize: 12, color: '#999', background: 'none',
+                border: '1px solid rgba(0,0,0,0.08)',
+                borderRadius: 8, padding: '5px 12px', cursor: 'pointer',
+                fontFamily: 'inherit', transition: 'color 0.15s',
+              }}
+              onMouseEnter={e => e.target.style.color = '#333'}
+              onMouseLeave={e => e.target.style.color = '#999'}
+            >Sign out</button>
+          </header>
+        </div>
 
         <main style={{ maxWidth: 960, margin: '0 auto', padding: '24px 28px 80px', width: '100%' }}>
           {/* Folder breadcrumb */}
