@@ -60,11 +60,11 @@ export default function MediaCard({ item, onDelete, onCopy, textContents, onPrev
   const cardStyle = {
     borderRadius: 20,
     overflow: 'hidden',
-    background: 'rgba(255,255,255,0.72)',
-    border: hovered ? '1px solid rgba(255,255,255,0.7)' : '1px solid rgba(0,0,0,0.06)',
+    background: 'var(--bg-surface)',
+    border: hovered ? '1px solid var(--border-card-hover)' : '1px solid var(--border-card)',
     boxShadow: hovered
-      ? '0 28px 64px rgba(0,0,0,0.12)'
-      : '0 6px 24px rgba(0,0,0,0.06)',
+      ? '0 28px 64px var(--shadow-lg)'
+      : '0 6px 24px var(--shadow-sm)',
     backdropFilter: 'blur(20px)',
     transform: hovered
       ? `perspective(900px) rotateX(${tilt.x}deg) rotateY(${tilt.y}deg) translateY(-8px) scale(1.025)`
@@ -119,9 +119,9 @@ export default function MediaCard({ item, onDelete, onCopy, textContents, onPrev
       return (
         <pre style={{
           width: '100%', height: '100%', margin: 0, padding: '14px 16px',
-          fontFamily: 'monospace', fontSize: 12, color: '#555',
+          fontFamily: 'monospace', fontSize: 12, color: 'var(--text-preview)',
           lineHeight: 1.7, overflowY: 'auto', boxSizing: 'border-box',
-          background: 'rgba(0,0,0,0.02)', whiteSpace: 'pre-wrap', wordBreak: 'break-word',
+          background: 'var(--preview-bg)', whiteSpace: 'pre-wrap', wordBreak: 'break-word',
         }}>{content}</pre>
       );
     }
@@ -153,37 +153,37 @@ export default function MediaCard({ item, onDelete, onCopy, textContents, onPrev
 
       <div style={{
         padding: '10px 14px',
-        borderTop: '1px solid rgba(0,0,0,0.04)',
+        borderTop: '1px solid var(--border-light)',
       }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
           <span style={{ fontSize: 9, fontWeight: 700, letterSpacing: '0.1em', padding: '3px 8px', borderRadius: 6, background: tm.bg, color: tm.color, flexShrink: 0 }}>{tm.label}</span>
-          <span style={{ fontSize: 10, color: '#ccc', flexShrink: 0 }}>
+          <span style={{ fontSize: 10, color: 'var(--text-muted-lightest)', flexShrink: 0 }}>
             {new Date(item.created_at).toLocaleString(undefined, { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
           </span>
           {item.file_name && (
-            <span style={{ fontSize: 11, color: '#b5aea8', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', minWidth: 0 }}>{item.file_name}</span>
+            <span style={{ fontSize: 11, color: 'var(--text-muted-lighter)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', minWidth: 0 }}>{item.file_name}</span>
           )}
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-          <button onClick={() => onPreview(item)} className="card-action" style={{ background: 'rgba(0,0,0,0.04)', color: '#999', padding: '6px 10px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          <button onClick={() => onPreview(item)} className="card-action" style={{ background: 'var(--card-action-bg)', color: 'var(--card-action-color)', padding: '6px 10px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
             <svg width="13" height="13" viewBox="0 0 16 16" fill="none">
               <path d="M1 8s2.5-5.5 7-5.5S15 8 15 8s-2.5 5.5-7 5.5S1 8 1 8z" stroke="currentColor" strokeWidth="1.3"/>
               <circle cx="8" cy="8" r="2.5" stroke="currentColor" strokeWidth="1.3"/>
             </svg>
           </button>
           {item.type !== 'text' && (
-            <a href={item.content} target="_blank" rel="noreferrer" onClick={e => e.stopPropagation()} className="card-action" style={{ background: 'rgba(0,0,0,0.04)', color: '#999' }}>Open ↗</a>
+            <a href={item.content} target="_blank" rel="noreferrer" onClick={e => e.stopPropagation()} className="card-action" style={{ background: 'var(--card-action-bg)', color: 'var(--card-action-color)' }}>Open ↗</a>
           )}
           {item.type === 'text' && (
-            <button onClick={() => onCopy(item.content)} className="card-action" style={{ background: 'rgba(0,0,0,0.04)', color: '#999' }}>Copy</button>
+            <button onClick={() => onCopy(item.content)} className="card-action" style={{ background: 'var(--card-action-bg)', color: 'var(--card-action-color)' }}>Copy</button>
           )}
           {item.type === 'link' ? (
-            <button onClick={() => onCopy(item.content)} className="card-action" style={{ background: 'rgba(0,0,0,0.04)', color: '#999' }}>Copy URL</button>
+            <button onClick={() => onCopy(item.content)} className="card-action" style={{ background: 'var(--card-action-bg)', color: 'var(--card-action-color)' }}>Copy URL</button>
           ) : (
-            <button onClick={() => onDownload(item)} className="card-action" style={{ background: 'rgba(0,0,0,0.04)', color: '#999' }}>Download</button>
+            <button onClick={() => onDownload(item)} className="card-action" style={{ background: 'var(--card-action-bg)', color: 'var(--card-action-color)' }}>Download</button>
           )}
           <div style={{ flex: 1 }} />
-          <button onClick={() => onDelete(item)} className="card-action" style={{ background: 'rgba(0,0,0,0.04)', color: '#999', padding: '6px 10px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          <button onClick={() => onDelete(item)} className="card-action" style={{ background: 'var(--card-action-bg)', color: 'var(--card-action-color)', padding: '6px 10px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
             <svg width="14" height="14" viewBox="0 0 16 16" fill="none">
               <path d="M2 4h12M5 4V2.5A.5.5 0 015.5 2h5a.5.5 0 01.5.5V4M4 4v9.5a1 1 0 001 1h6a1 1 0 001-1V4" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round"/>
               <path d="M6 7v5M10 7v5" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round"/>

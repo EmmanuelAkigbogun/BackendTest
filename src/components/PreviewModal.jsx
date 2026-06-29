@@ -48,7 +48,7 @@ export default function PreviewModal({ item, onClose }) {
     if (displayType === 'text') {
       const content = item.type === 'text' ? item.content : (textContent || 'Loading…');
       return (
-        <pre tabIndex={0} style={{ maxWidth: '90vw', maxHeight: '85vh', overflow: 'auto', padding: 24, fontFamily: 'monospace', fontSize: 13, color: '#333', background: 'rgba(255,255,255,0.9)', borderRadius: 12, whiteSpace: 'pre-wrap', wordBreak: 'break-all', outline: 'none' }}>
+        <pre tabIndex={0} style={{ maxWidth: '90vw', maxHeight: '85vh', overflow: 'auto', padding: 24, fontFamily: 'monospace', fontSize: 13, color: 'var(--text-tertiary)', background: 'var(--bg-surface-raised)', borderRadius: 12, whiteSpace: 'pre-wrap', wordBreak: 'break-all', outline: 'none' }}>
           {content}
         </pre>
       );
@@ -61,7 +61,7 @@ export default function PreviewModal({ item, onClose }) {
   return (
     <div onClick={onClose} style={{
       position: 'fixed', inset: 0, zIndex: 9999,
-      background: 'rgba(0,0,0,0.75)', backdropFilter: 'blur(12px)',
+      background: 'var(--bg-preview-overlay)', backdropFilter: 'blur(12px)',
       display: 'flex', alignItems: 'center', justifyContent: 'center',
       padding: 24,
     }}>

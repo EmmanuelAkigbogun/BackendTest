@@ -1,0 +1,109 @@
+:root {
+  --bg-page: radial-gradient(ellipse at 22% 0%, #f0e9e5 0%, #e8ddd6 35%, #ddd4cc 70%, #d5cac2 100%);
+  --bg-surface: rgba(255, 255, 255, 0.72);
+  --bg-surface-raised: rgba(255, 255, 255, 0.85);
+  --bg-surface-header: rgba(255, 255, 255, 0.75);
+  --bg-sidebar: rgba(255, 255, 255, 0.55);
+  --bg-compose: rgba(255, 255, 255, 0.7);
+  --bg-auth-form: rgba(255, 255, 255, 0.78);
+  --bg-auth-page: #e8e0db;
+  --bg-button: #1a1a1a;
+  --bg-button-hover: #333;
+  --bg-input: rgba(255, 255, 255, 0.8);
+  --bg-overlay: rgba(0, 0, 0, 0.35);
+  --bg-preview-overlay: rgba(0, 0, 0, 0.75);
+  --text-primary: #1a1a1a;
+  --text-secondary: #333;
+  --text-tertiary: #555;
+  --text-muted: #999;
+  --text-muted-light: #aaa;
+  --text-muted-lighter: #b5aea8;
+  --text-muted-lightest: #ccc;
+  --text-button: white;
+  --text-input: #333;
+  --text-placeholder: #b8b0a8;
+  --border-subtle: rgba(0, 0, 0, 0.06);
+  --border-light: rgba(0, 0, 0, 0.04);
+  --border-input: rgba(0, 0, 0, 0.08);
+  --border-input-focus: rgba(0, 0, 0, 0.18);
+  --border-card: rgba(0, 0, 0, 0.06);
+  --border-card-hover: rgba(255, 255, 255, 0.7);
+  --shadow-sm: rgba(0, 0, 0, 0.06);
+  --shadow-md: rgba(0, 0, 0, 0.1);
+  --shadow-lg: rgba(0, 0, 0, 0.12);
+  --shadow-toast: rgba(0, 0, 0, 0.15);
+  --doodle-stroke: #c0a898;
+  --doodle-stroke-alt: #b89880;
+  --folder-icon-fill: #ccc;
+  --folder-icon-hover: #1a1a1a;
+  --danger: #c85c3c;
+  --danger-bg: rgba(200, 92, 60, 0.08);
+  --link-mode-bg: rgba(52, 211, 153, 0.15);
+  --link-mode-color: #34d399;
+  --card-action-bg: rgba(0, 0, 0, 0.04);
+  --card-action-color: #999;
+  --text-preview: #555;
+  --preview-bg: rgba(0, 0, 0, 0.02);
+  --separator: #f0ebe8;
+  --bg-icon: #1a1a1a;
+}
+
+.dark {
+  --bg-page: radial-gradient(ellipse at 22% 0%, #0f0f1a 0%, #16161f 35%, #1a1a24 70%, #0d0d14 100%);
+  --bg-surface: rgba(28, 28, 38, 0.78);
+  --bg-surface-raised: rgba(32, 32, 44, 0.9);
+  --bg-surface-header: rgba(20, 20, 30, 0.85);
+  --bg-sidebar: rgba(20, 20, 30, 0.65);
+  --bg-compose: rgba(28, 28, 40, 0.78);
+  --bg-auth-form: rgba(25, 25, 38, 0.85);
+  --bg-auth-page: #0a0a14;
+  --bg-button: #343848;
+  --bg-button-hover: #40445a;
+  --bg-input: rgba(35, 35, 50, 0.8);
+  --bg-overlay: rgba(0, 0, 0, 0.65);
+  --bg-preview-overlay: rgba(0, 0, 0, 0.88);
+  --text-primary: #f0f0f0;
+  --text-secondary: #c8c8c8;
+  --text-tertiary: #a8a8a8;
+  --text-muted: #909090;
+  --text-muted-light: #787878;
+  --text-muted-lighter: #686868;
+  --text-muted-lightest: #585858;
+  --text-button: white;
+  --text-input: #d0d0e0;
+  --text-placeholder: #888888;
+  --border-subtle: rgba(255, 255, 255, 0.06);
+  --border-light: rgba(255, 255, 255, 0.04);
+  --border-input: rgba(255, 255, 255, 0.1);
+  --border-input-focus: rgba(255, 255, 255, 0.2);
+  --border-card: rgba(255, 255, 255, 0.05);
+  --border-card-hover: rgba(255, 255, 255, 0.1);
+  --shadow-sm: rgba(0, 0, 0, 0.35);
+  --shadow-md: rgba(0, 0, 0, 0.45);
+  --shadow-lg: rgba(0, 0, 0, 0.55);
+  --shadow-toast: rgba(0, 0, 0, 0.6);
+  --doodle-stroke: #3a3a4a;
+  --doodle-stroke-alt: #2e2e3e;
+  --folder-icon-fill: #ffffff;
+  --folder-icon-hover: #ffffff;
+  --danger: #e07050;
+  --danger-bg: rgba(224, 112, 80, 0.12);
+  --link-mode-bg: rgba(52, 211, 153, 0.2);
+  --link-mode-color: #34d399;
+  --card-action-bg: rgba(255, 255, 255, 0.06);
+  --card-action-color: #909090;
+  --text-preview: #a0a0b8;
+  --preview-bg: rgba(255, 255, 255, 0.03);
+  --separator: rgba(255, 255, 255, 0.06);
+  --bg-icon: #3a3a4a;
+}
+
+.dark svg *[stroke="#c0a898"] {
+  stroke: #4a4a6a;
+}
+.dark svg *[stroke="#b89880"] {
+  stroke: #3a3a5a;
+}
+.dark svg *[stroke="#1a1a1a"] {
+  stroke: #e0e0e8;
+}

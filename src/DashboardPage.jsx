@@ -8,7 +8,7 @@ import ConfirmDialog from './components/ConfirmDialog';
 import { DashboardDoodles } from './Doodles';
 import './DashboardPage.css';
 
-export default function DashboardPage({ session, onSignOut }) {
+export default function DashboardPage({ session, onSignOut, theme, toggleTheme }) {
   const [message, setMessage] = useState('');
   const [selectedFile, setSelectedFile] = useState(null);
   const [history, setHistory] = useState([]);
@@ -235,8 +235,8 @@ export default function DashboardPage({ session, onSignOut }) {
   return (
     <div style={{
       minHeight: '100vh',
-      background: 'radial-gradient(ellipse at 22% 0%, #f0e9e5 0%, #e8ddd6 35%, #ddd4cc 70%, #d5cac2 100%)',
-      color: '#1a1a1a',
+      background: 'var(--bg-page)',
+      color: 'var(--text-primary)',
       fontFamily: "'Inter', system-ui, sans-serif",
       display: 'flex',
       position: 'relative',
@@ -258,13 +258,13 @@ export default function DashboardPage({ session, onSignOut }) {
       />
 
       <div className="main-content" style={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0, minHeight: '100vh', position: 'relative', zIndex: 1 }}>
-        <div style={{ position: 'sticky', top: 0, zIndex: 100 }}>
+        <div className="app-header">
           <header style={{
             display: 'flex', alignItems: 'center', justifyContent: 'space-between',
             padding: '10px 18px',
-            background: 'rgba(255,255,255,0.75)',
+            background: 'var(--bg-surface-header)',
             backdropFilter: 'blur(24px)',
-            borderBottom: '1px solid rgba(0,0,0,0.04)',
+            borderBottom: '1px solid var(--border-light)',
             flexWrap: 'wrap', gap: 8,
           }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
@@ -275,32 +275,57 @@ export default function DashboardPage({ session, onSignOut }) {
               </button>
               <div style={{
                 width: 26, height: 26, borderRadius: 7,
-                background: '#1a1a1a',
+                background: 'var(--bg-icon)',
                 display: 'flex', alignItems: 'center', justifyContent: 'center',
               }}>
                 <svg width="12" height="12" viewBox="0 0 14 14" fill="none">
                   <path d="M2 7h10M7 2v10" stroke="white" strokeWidth="1.8" strokeLinecap="round" />
                 </svg>
               </div>
-              <div style={{ fontSize: 13, fontWeight: 600, color: '#1a1a1a', lineHeight: 1 }}>Folder</div>
+              <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-primary)', lineHeight: 1 }}>Folder</div>
             </div>
 
-            <button
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <button
+                onClick={toggleTheme}
+                className="theme-toggle"
+                style={{
+                  fontSize: 12, color: 'white', background: 'var(--bg-icon)',
+                  border: 'none',
+                  borderRadius: 8, padding: '5px 10px', cursor: 'pointer',
+                  fontFamily: 'inherit', display: 'flex', alignItems: 'center', gap: 5,
+                }}
+                title={`Switch to ${theme === 'light' ? 'dark' : 'light'} mode`}
+              >
+                {theme === 'light' ? (
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
+                    <path d="M12 3a9 9 0 109 9c0-.46-.04-.92-.1-1.36a5.389 5.389 0 01-4.4 2.26 5.403 5.403 0 01-3.14-9.8c-.44-.06-.9-.1-1.36-.1z" fill="currentColor"/>
+                  </svg>
+                ) : (
+                  <svg width="14" height="14" viewBox="0 0 20 20" fill="none">
+                    <path d="M10 2v2M10 16v2M4 10H2M18 10h-2M5.5 5.5l-1-1M15.5 15.5l1 1M5.5 14.5l-1 1M15.5 5.5l1-1" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
+                    <circle cx="10" cy="10" r="4" stroke="currentColor" strokeWidth="1.5"/>
+                  </svg>
+                )}
+              </button>
+
+              <button
               onClick={onSignOut}
               style={{
-                fontSize: 12, color: '#999', background: 'none',
-                border: '1px solid rgba(0,0,0,0.08)',
+                fontSize: 12, color: 'var(--text-muted)', background: 'none',
+                border: '1px solid var(--border-input)',
                 borderRadius: 8, padding: '5px 12px', cursor: 'pointer',
                 fontFamily: 'inherit', transition: 'color 0.15s',
               }}
-              onMouseEnter={e => e.target.style.color = '#333'}
-              onMouseLeave={e => e.target.style.color = '#999'}
+              onMouseEnter={e => e.target.style.color = 'var(--text-secondary)'}
+              onMouseLeave={e => e.target.style.color = 'var(--text-muted)'}
             >Sign out</button>
-          </header>
+          </div>
+        </header>
         </div>
 
-        <main style={{ maxWidth: 960, margin: '0 auto', padding: '24px 28px 80px', width: '100%' }}>
-          <div style={{ fontSize: 18, fontWeight: 600, color: '#1a1a1a', marginBottom: 20, textAlign: 'right' }}>
+        <main style={{ maxWidth: 960, margin: '0 auto', padding: '0 28px 80px', width: '100%' }}>
+          <div style={{ fontSize: 18, fontWeight: 600, color: 'var(--text-primary)', marginBottom: 20, textAlign: 'right' }}>
             {(activeFolder ? folders.find(f => f.id === activeFolder)?.name : 'All Items') || 'All Items'}
           </div>
 
@@ -317,14 +342,14 @@ export default function DashboardPage({ session, onSignOut }) {
               <div style={{
                 display: 'flex', alignItems: 'center', justifyContent: 'space-between',
                 padding: '10px 16px',
-                borderTop: '1px solid rgba(0,0,0,0.04)',
+                borderTop: '1px solid var(--border-light)',
                 flexWrap: 'wrap', gap: 10,
               }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                   {!linkMode && (
-                    <label htmlFor="fileInput" style={{ display: 'flex', alignItems: 'center', gap: 7, fontSize: 12, color: '#999', cursor: 'pointer', transition: 'color 0.15s' }}
-                      onMouseEnter={e => e.currentTarget.style.color = '#555'}
-                      onMouseLeave={e => e.currentTarget.style.color = '#999'}
+                    <label htmlFor="fileInput" style={{ display: 'flex', alignItems: 'center', gap: 7, fontSize: 12, color: 'var(--text-muted)', cursor: 'pointer', transition: 'color 0.15s' }}
+                      onMouseEnter={e => e.currentTarget.style.color = 'var(--text-secondary)'}
+                      onMouseLeave={e => e.currentTarget.style.color = 'var(--text-muted)'}
                     >
                       <svg width="15" height="15" viewBox="0 0 16 16" fill="none">
                         <path d="M8 2v9M5 5l3-3 3 3" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" />
@@ -333,13 +358,13 @@ export default function DashboardPage({ session, onSignOut }) {
                       {selectedFile ? selectedFile.name : 'Attach a file'}
                     </label>
                   )}
-                  <button
-                    type="button"
-                    onClick={() => { setLinkMode(!linkMode); setSelectedFile(null); }}
-                    className="card-action"
+                <button
+                  type="button"
+                  onClick={() => { setLinkMode(!linkMode); setSelectedFile(null); }}
+                  className="card-action"
                     style={{
-                      background: linkMode ? 'rgba(52,211,153,0.15)' : 'rgba(0,0,0,0.04)',
-                      color: linkMode ? '#34d399' : '#999',
+                      background: linkMode ? 'var(--link-mode-bg)' : 'var(--card-action-bg)',
+                      color: linkMode ? 'var(--link-mode-color)' : 'var(--text-muted)',
                       display: 'flex', alignItems: 'center', gap: 4,
                     }}
                   >
@@ -360,9 +385,9 @@ export default function DashboardPage({ session, onSignOut }) {
 
           <div>
             <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 20 }}>
-              <span style={{ fontSize: 10, fontWeight: 600, letterSpacing: '0.18em', color: '#b5aea8', textTransform: 'uppercase' }}>{activeFolderName}</span>
-              <div style={{ flex: 1, height: 1, background: 'rgba(0,0,0,0.06)' }} />
-              <span style={{ fontSize: 10, color: '#ccc' }}>
+              <span style={{ fontSize: 10, fontWeight: 600, letterSpacing: '0.18em', color: 'var(--text-muted-lighter)', textTransform: 'uppercase' }}>{activeFolderName}</span>
+              <div style={{ flex: 1, height: 1, background: 'var(--border-subtle)' }} />
+              <span style={{ fontSize: 10, color: 'var(--text-muted)' }}>
                 {currentSubfolders.length > 0 && `${currentSubfolders.length} folder${currentSubfolders.length > 1 ? 's' : ''}`}
                 {currentSubfolders.length > 0 && history.length > 0 && ' · '}
                 {history.length > 0 && `${history.length} file${history.length > 1 ? 's' : ''}`}
@@ -371,8 +396,8 @@ export default function DashboardPage({ session, onSignOut }) {
             </div>
 
             {currentSubfolders.length === 0 && history.length === 0 ? (
-              <div style={{ textAlign: 'center', padding: '80px 0', border: '1px dashed rgba(0,0,0,0.06)', borderRadius: 20 }}>
-                <p style={{ fontSize: 14, color: '#b5aea8', margin: 0 }}>
+              <div style={{ textAlign: 'center', padding: '80px 0', border: '1px dashed var(--border-subtle)', borderRadius: 20 }}>
+                <p style={{ fontSize: 14, color: 'var(--text-muted-lighter)', margin: 0 }}>
                   {activeFolder ? 'This folder is empty.' : 'No transmissions yet. Send your first entry above.'}
                 </p>
               </div>
@@ -407,10 +432,10 @@ export default function DashboardPage({ session, onSignOut }) {
         <div style={{
           position: 'fixed', top: 24, left: '50%', transform: 'translateX(-50%)',
           padding: '8px 20px', borderRadius: 999,
-          background: '#1a1a1a', color: 'white',
+          background: 'var(--bg-button)', color: 'var(--text-button)',
           fontSize: 12, fontWeight: 500, backdropFilter: 'blur(8px)',
           zIndex: 10000, whiteSpace: 'nowrap',
-          boxShadow: '0 4px 16px rgba(0,0,0,0.15)',
+          boxShadow: '0 4px 16px var(--shadow-toast)',
           pointerEvents: 'none',
         }}>{toast}</div>
       )}

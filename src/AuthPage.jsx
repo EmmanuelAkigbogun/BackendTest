@@ -4,7 +4,7 @@ import { GoogleIcon, Sculpture, Accent } from './Doodles';
 
 
 
-export default function AuthPage() {
+export default function AuthPage({ theme, toggleTheme }) {
   const [email, setEmail]       = useState('');
   const [password, setPassword] = useState('');
   const [isSignUp, setIsSignUp] = useState(false);
@@ -38,7 +38,7 @@ export default function AuthPage() {
       display: 'flex',
       alignItems: 'center',
       justifyContent: 'center',
-      background: '#e8e0db',
+      background: 'var(--bg-auth-page)',
       fontFamily: "'Inter', system-ui, sans-serif",
       position: 'relative',
       overflow: 'hidden',
@@ -48,17 +48,17 @@ export default function AuthPage() {
         .auth-field {
           width: 100%;
           border: none;
-          border-bottom: 1.5px solid #ccc5be;
+          border-bottom: 1.5px solid var(--text-muted-lighter);
           background: transparent;
           padding: 10px 0;
           font-size: 14px;
-          color: #1a1a1a;
+          color: var(--text-primary);
           outline: none;
           transition: border-color 0.2s;
           font-family: inherit;
         }
-        .auth-field:focus { border-color: #1a1a1a; }
-        .auth-field::placeholder { color: #b5aea8; }
+        .auth-field:focus { border-color: var(--text-primary); }
+        .auth-field::placeholder { color: var(--text-muted-lighter); }
         .art-float { animation: artFloat 7s ease-in-out infinite; }
         .art-float-slow { animation: artFloat 11s ease-in-out infinite reverse; }
         .art-sway { animation: artSway 9s ease-in-out infinite; }
@@ -84,8 +84,8 @@ export default function AuthPage() {
         .submit-btn {
           width: 100%;
           padding: 12px;
-          background: #1a1a1a;
-          color: white;
+          background: var(--bg-button);
+          color: var(--text-button);
           border: none;
           border-radius: 12px;
           font-size: 14px;
@@ -104,28 +104,28 @@ export default function AuthPage() {
           justify-content: center;
           gap: 10px;
           padding: 11px;
-          background: white;
-          border: 1px solid #e0d9d4;
+          background: var(--bg-surface);
+          border: 1px solid var(--border-subtle);
           border-radius: 12px;
           font-size: 14px;
           font-weight: 500;
-          color: #333;
+          color: var(--text-secondary);
           cursor: pointer;
           font-family: inherit;
           transition: background 0.15s;
         }
-        .google-btn:hover { background: #f9f5f2; }
+        .google-btn:hover { background: var(--card-action-bg); }
         .toggle-link {
           background: none;
           border: none;
-          color: #888;
+          color: var(--text-muted);
           font-size: 13px;
           cursor: pointer;
           font-family: inherit;
           transition: color 0.15s;
           padding: 0;
         }
-        .toggle-link:hover { color: #1a1a1a; }
+        .toggle-link:hover { color: var(--text-primary); }
         @media (max-width: 640px) {
           .auth-form { padding: 28px 20px !important; }
           .auth-heading { font-size: 26px !important; }
@@ -397,17 +397,41 @@ export default function AuthPage() {
       </Accent>
 
       {/* ── Form ── */}
+      <button
+        onClick={toggleTheme}
+        className="theme-toggle"
+        style={{
+          position: 'fixed', top: 16, right: 16, zIndex: 10,
+          fontSize: 12, color: 'white', background: 'var(--bg-icon)',
+          border: 'none',
+          borderRadius: 8, padding: '6px 12px', cursor: 'pointer',
+          fontFamily: 'inherit', display: 'flex', alignItems: 'center', gap: 5,
+        }}
+        title={`Switch to ${theme === 'light' ? 'dark' : 'light'} mode`}
+      >
+        {theme === 'light' ? (
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
+            <path d="M12 3a9 9 0 109 9c0-.46-.04-.92-.1-1.36a5.389 5.389 0 01-4.4 2.26 5.403 5.403 0 01-3.14-9.8c-.44-.06-.9-.1-1.36-.1z" fill="currentColor"/>
+          </svg>
+        ) : (
+          <svg width="14" height="14" viewBox="0 0 20 20" fill="none">
+            <path d="M10 2v2M10 16v2M4 10H2M18 10h-2M5.5 5.5l-1-1M15.5 15.5l1 1M5.5 14.5l-1 1M15.5 5.5l1-1" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
+            <circle cx="10" cy="10" r="4" stroke="currentColor" strokeWidth="1.5"/>
+          </svg>
+        )}
+      </button>
+
       <div className="auth-form" style={{
         width: '100%',
         maxWidth: 440,
-        background: 'rgba(255,255,255,0.78)',
+        background: 'var(--bg-auth-form)',
         backdropFilter: 'blur(16px)',
         display: 'flex',
         flexDirection: 'column',
         justifyContent: 'space-between',
         padding: '48px 48px',
         borderRadius: 20,
-        boxShadow: '0 20px 60px rgba(0,0,0,0.06)',
+        boxShadow: '0 20px 60px var(--shadow-md)',
         position: 'relative',
         zIndex: 2,
         margin: 20,
@@ -415,16 +439,16 @@ export default function AuthPage() {
         <div>
           {/* Wordmark */}
           <div className="auth-wordmark" style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 56 }}>
-            <div style={{ width: 8, height: 8, borderRadius: '50%', background: '#1a1a1a' }}/>
-            <span style={{ fontSize: 13, fontWeight: 500, letterSpacing: '0.06em', color: '#1a1a1a' }}>Folder</span>
+            <div style={{ width: 8, height: 8, borderRadius: '50%', background: 'var(--text-primary)' }}/>
+            <span style={{ fontSize: 13, fontWeight: 500, letterSpacing: '0.06em', color: 'var(--text-primary)' }}>Folder</span>
           </div>
 
           {/* Heading */}
           <div style={{ marginBottom: 36 }}>
-            <h1 className="auth-heading" style={{ fontSize: 30, fontWeight: 600, color: '#111', margin: '0 0 8px', lineHeight: 1.2 }}>
+            <h1 className="auth-heading" style={{ fontSize: 30, fontWeight: 600, color: 'var(--text-primary)', margin: '0 0 8px', lineHeight: 1.2 }}>
               {isSignUp ? 'Create an account' : 'Welcome back'}
             </h1>
-            <p style={{ fontSize: 14, color: '#999', margin: 0 }}>
+            <p style={{ fontSize: 14, color: 'var(--text-muted)', margin: 0 }}>
               {isSignUp
                 ? 'Your personal media vault, ready in seconds.'
                 : 'Sign in to access your transmissions.'}
@@ -434,7 +458,7 @@ export default function AuthPage() {
           {/* Fields */}
           <form onSubmit={handleAuth} style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
             <div>
-              <label style={{ display: 'block', fontSize: 11, color: '#aaa', marginBottom: 4, letterSpacing: '0.08em', textTransform: 'uppercase' }}>Email</label>
+              <label style={{ display: 'block', fontSize: 11, color: 'var(--text-muted-light)', marginBottom: 4, letterSpacing: '0.08em', textTransform: 'uppercase' }}>Email</label>
               <input
                 className="auth-field"
                 type="email"
@@ -446,7 +470,7 @@ export default function AuthPage() {
               />
             </div>
             <div>
-              <label style={{ display: 'block', fontSize: 11, color: '#aaa', marginBottom: 4, letterSpacing: '0.08em', textTransform: 'uppercase' }}>Password</label>
+              <label style={{ display: 'block', fontSize: 11, color: 'var(--text-muted-light)', marginBottom: 4, letterSpacing: '0.08em', textTransform: 'uppercase' }}>Password</label>
               <input
                 className="auth-field"
                 type="password"
@@ -465,9 +489,9 @@ export default function AuthPage() {
 
           {/* Divider */}
           <div style={{ display: 'flex', alignItems: 'center', gap: 12, margin: '20px 0' }}>
-            <div style={{ flex: 1, height: 1, background: '#f0ebe8' }}/>
-            <span style={{ fontSize: 12, color: '#ccc' }}>or</span>
-            <div style={{ flex: 1, height: 1, background: '#f0ebe8' }}/>
+            <div style={{ flex: 1, height: 1, background: 'var(--separator)' }}/>
+            <span style={{ fontSize: 12, color: 'var(--text-muted-lightest)' }}>or</span>
+            <div style={{ flex: 1, height: 1, background: 'var(--separator)' }}/>
           </div>
 
           <button className="google-btn" onClick={handleGoogle}>
@@ -484,11 +508,11 @@ export default function AuthPage() {
 
         {/* Footer */}
         <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 48 }}>
-          <span style={{ fontSize: 11, color: '#ccc' }}>© Folder {new Date().getFullYear()}</span>
-          <a href="mailto:help@folder.app" style={{ fontSize: 11, color: '#ccc', textDecoration: 'none', display: 'flex', alignItems: 'center', gap: 4 }}>
+          <span style={{ fontSize: 11, color: 'var(--text-muted-lightest)' }}>© Folder {new Date().getFullYear()}</span>
+          <a href="mailto:help@folder.app" style={{ fontSize: 11, color: 'var(--text-muted-lightest)', textDecoration: 'none', display: 'flex', alignItems: 'center', gap: 4 }}>
             <svg width="11" height="11" viewBox="0 0 12 12" fill="none">
-              <rect x="1" y="2.5" width="10" height="7" rx="1" stroke="#ccc" strokeWidth="1"/>
-              <path d="M1 3.5l5 3.5 5-3.5" stroke="#ccc" strokeWidth="1"/>
+              <rect x="1" y="2.5" width="10" height="7" rx="1" stroke="var(--text-muted-lightest)" strokeWidth="1"/>
+              <path d="M1 3.5l5 3.5 5-3.5" stroke="var(--text-muted-lightest)" strokeWidth="1"/>
             </svg>
             help@folder.app
           </a>
