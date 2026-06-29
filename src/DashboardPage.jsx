@@ -4,6 +4,7 @@ import MediaCard, { getFileType } from './components/MediaCard';
 import FolderCard from './components/FolderCard';
 import Sidebar, { buildTree } from './components/Sidebar';
 import PreviewModal from './components/PreviewModal';
+import ConfirmDialog from './components/ConfirmDialog';
 import { DashboardDoodles } from './Doodles';
 import './DashboardPage.css';
 
@@ -17,7 +18,9 @@ export default function DashboardPage({ session, onSignOut }) {
   const [textContents, setTextContents] = useState({});
   const [toast, setToast] = useState('');
   const [previewItem, setPreviewItem] = useState(null);
+  const [confirmState, setConfirmState] = useState(null);
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [linkMode, setLinkMode] = useState(false);
   const [expandedSet, setExpandedSet] = useState(new Set());
   const [folderCounts, setFolderCounts] = useState({});
   const fetchedRef = useRef({});
@@ -117,39 +120,50 @@ export default function DashboardPage({ session, onSignOut }) {
 
   const handleSend = async (e) => {
     e.preventDefault();
-    if (!message.trim() && !selectedFile) return;
+    if (!message.trim() && !selectedFile && !linkMode) return;
+    if (linkMode && !message.trim()) return;
     setLoading(true);
     try {
       const userId = session.user.id;
-      let payload = { user_id: userId, type: 'text', content: message, file_name: null, folder_id: activeFolder };
-      if (selectedFile) {
-        const fileExt = selectedFile.name.split('.').pop();
-        const filePath = `${userId}/${crypto.randomUUID()}.${fileExt}`;
-        const { error: ue } = await supabase.storage.from('uploads').upload(filePath, selectedFile);
-        if (ue) throw ue;
-        const { data: { publicUrl } } = supabase.storage.from('uploads').getPublicUrl(filePath);
-        payload = { ...payload, type: 'file', content: publicUrl, file_name: selectedFile.name };
+      let payload;
+      if (linkMode) {
+        payload = { user_id: userId, type: 'link', content: message, file_name: null, folder_id: activeFolder };
+      } else {
+        payload = { user_id: userId, type: 'text', content: message, file_name: null, folder_id: activeFolder };
+        if (selectedFile) {
+          const fileExt = selectedFile.name.split('.').pop();
+          const filePath = `${userId}/${crypto.randomUUID()}.${fileExt}`;
+          const { error: ue } = await supabase.storage.from('uploads').upload(filePath, selectedFile);
+          if (ue) throw ue;
+          const { data: { publicUrl } } = supabase.storage.from('uploads').getPublicUrl(filePath);
+          payload = { ...payload, type: 'file', content: publicUrl, file_name: selectedFile.name };
+        }
       }
       const { error: de } = await supabase.from('history').insert([payload]);
       if (de) throw de;
-      setMessage(''); setSelectedFile(null);
+      setMessage(''); setSelectedFile(null); setLinkMode(false);
       document.getElementById('fileInput').value = '';
       fetchHistory();
     } catch (err) { alert(err.message); }
     finally { setLoading(false); }
   };
 
-  const handleDelete = async (item) => {
-    if (!confirm('Delete this entry?')) return;
-    try {
-      if (item.type !== 'text' && item.content) {
-        const p = item.content.split('/storage/v1/object/public/uploads/')[1];
-        if (p) await supabase.storage.from('uploads').remove([p]);
-      }
-      const { error } = await supabase.from('history').delete().eq('id', item.id);
-      if (error) throw error;
-      fetchHistory();
-    } catch (err) { alert(err.message); }
+  const handleDelete = (item) => {
+    setConfirmState({
+      message: 'Delete this entry?',
+      onConfirm: async () => {
+        setConfirmState(null);
+        try {
+          if (item.type !== 'text' && item.content) {
+            const p = item.content.split('/storage/v1/object/public/uploads/')[1];
+            if (p) await supabase.storage.from('uploads').remove([p]);
+          }
+          const { error } = await supabase.from('history').delete().eq('id', item.id);
+          if (error) throw error;
+          fetchHistory();
+        } catch (err) { alert(err.message); }
+      },
+    });
   };
 
   const handleDownload = async (item) => {
@@ -193,15 +207,20 @@ export default function DashboardPage({ session, onSignOut }) {
     } catch (err) { alert(err.message); }
   };
 
-  const handleDeleteFolder = async (id) => {
-    if (!confirm('Delete this folder and all sub-folders? Items will become uncategorized.')) return;
-    try {
-      const { error } = await supabase.from('folders').delete().eq('id', id);
-      if (error) throw error;
-      if (activeFolder === id) setActiveFolder(null);
-      fetchFolders();
-      fetchHistory();
-    } catch (err) { alert(err.message); }
+  const handleDeleteFolder = (id) => {
+    setConfirmState({
+      message: 'Delete this folder and all sub-folders? Items will become uncategorized.',
+      onConfirm: async () => {
+        setConfirmState(null);
+        try {
+          const { error } = await supabase.from('folders').delete().eq('id', id);
+          if (error) throw error;
+          if (activeFolder === id) setActiveFolder(null);
+          fetchFolders();
+          fetchHistory();
+        } catch (err) { alert(err.message); }
+      },
+    });
   };
 
   useEffect(() => {
@@ -266,16 +285,6 @@ export default function DashboardPage({ session, onSignOut }) {
               <div style={{ fontSize: 13, fontWeight: 600, color: '#1a1a1a', lineHeight: 1 }}>Folder</div>
             </div>
 
-            {toast && (
-              <div style={{
-                position: 'absolute', left: '50%', transform: 'translateX(-50%)',
-                padding: '6px 18px', borderRadius: 999,
-                background: '#1a1a1a', color: 'white',
-                fontSize: 12, fontWeight: 500, backdropFilter: 'blur(8px)',
-                zIndex: 10,
-              }}>{toast}</div>
-            )}
-
             <button
               onClick={onSignOut}
               style={{
@@ -300,7 +309,7 @@ export default function DashboardPage({ session, onSignOut }) {
               <textarea
                 className="compose-textarea"
                 rows={3}
-                placeholder={activeFolder ? `Add to ${activeFolderName}…` : "Write something, or attach a file below…"}
+                placeholder={linkMode ? 'https://example.com' : (activeFolder ? `Add to ${activeFolderName}…` : "Write something, or attach a file below…")}
                 value={message}
                 onChange={e => setMessage(e.target.value)}
                 onKeyDown={e => { if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') handleSend(e); }}
@@ -311,19 +320,39 @@ export default function DashboardPage({ session, onSignOut }) {
                 borderTop: '1px solid rgba(0,0,0,0.04)',
                 flexWrap: 'wrap', gap: 10,
               }}>
-                <label htmlFor="fileInput" style={{ display: 'flex', alignItems: 'center', gap: 7, fontSize: 12, color: '#999', cursor: 'pointer', transition: 'color 0.15s' }}
-                  onMouseEnter={e => e.currentTarget.style.color = '#555'}
-                  onMouseLeave={e => e.currentTarget.style.color = '#999'}
-                >
-                  <svg width="15" height="15" viewBox="0 0 16 16" fill="none">
-                    <path d="M8 2v9M5 5l3-3 3 3" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" />
-                    <path d="M2 11v2a1 1 0 001 1h10a1 1 0 001-1v-2" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" />
-                  </svg>
-                  {selectedFile ? selectedFile.name : 'Attach a file'}
-                </label>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                  {!linkMode && (
+                    <label htmlFor="fileInput" style={{ display: 'flex', alignItems: 'center', gap: 7, fontSize: 12, color: '#999', cursor: 'pointer', transition: 'color 0.15s' }}
+                      onMouseEnter={e => e.currentTarget.style.color = '#555'}
+                      onMouseLeave={e => e.currentTarget.style.color = '#999'}
+                    >
+                      <svg width="15" height="15" viewBox="0 0 16 16" fill="none">
+                        <path d="M8 2v9M5 5l3-3 3 3" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" />
+                        <path d="M2 11v2a1 1 0 001 1h10a1 1 0 001-1v-2" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" />
+                      </svg>
+                      {selectedFile ? selectedFile.name : 'Attach a file'}
+                    </label>
+                  )}
+                  <button
+                    type="button"
+                    onClick={() => { setLinkMode(!linkMode); setSelectedFile(null); }}
+                    className="card-action"
+                    style={{
+                      background: linkMode ? 'rgba(52,211,153,0.15)' : 'rgba(0,0,0,0.04)',
+                      color: linkMode ? '#34d399' : '#999',
+                      display: 'flex', alignItems: 'center', gap: 4,
+                    }}
+                  >
+                    <svg width="12" height="12" viewBox="0 0 16 16" fill="none">
+                      <path d="M7 8a3 3 0 014-4l2 2a3 3 0 01-4 4" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round"/>
+                      <path d="M9 8a3 3 0 01-4 4l-2-2a3 3 0 014-4" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round"/>
+                    </svg>
+                    Link
+                  </button>
+                </div>
                 <input id="fileInput" type="file" style={{ display: 'none' }} onChange={e => setSelectedFile(e.target.files[0])} />
                 <button type="submit" disabled={loading} className="send-btn">
-                  {loading ? 'Sending…' : 'Send entry'}
+                  {loading ? 'Sending…' : linkMode ? 'Add link' : 'Send entry'}
                 </button>
               </div>
             </div>
@@ -374,7 +403,25 @@ export default function DashboardPage({ session, onSignOut }) {
         </main>
       </div>
 
+      {toast && (
+        <div style={{
+          position: 'fixed', top: 24, left: '50%', transform: 'translateX(-50%)',
+          padding: '8px 20px', borderRadius: 999,
+          background: '#1a1a1a', color: 'white',
+          fontSize: 12, fontWeight: 500, backdropFilter: 'blur(8px)',
+          zIndex: 10000, whiteSpace: 'nowrap',
+          boxShadow: '0 4px 16px rgba(0,0,0,0.15)',
+          pointerEvents: 'none',
+        }}>{toast}</div>
+      )}
       {previewItem && <PreviewModal item={previewItem} onClose={() => setPreviewItem(null)} />}
+      {confirmState && (
+        <ConfirmDialog
+          message={confirmState.message}
+          onConfirm={confirmState.onConfirm}
+          onCancel={() => setConfirmState(null)}
+        />
+      )}
     </div>
   );
 }

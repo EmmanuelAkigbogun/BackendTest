@@ -126,7 +126,7 @@ export default function MediaCard({ item, onDelete, onCopy, textContents, onPrev
       );
     }
     if (displayType === 'link') return (
-      <iframe src={item.content} style={{ width: '100%', height: '100%', border: 'none', background: 'white' }} title="Link Preview" />
+      <iframe src={item.content} style={{ width: '100%', height: '100%', border: 'none', background: 'white', pointerEvents: 'none' }} title="Link Preview" />
     );
     return (
       <div style={{ width: '100%', height: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 10, background: tm.bg }}>
@@ -183,7 +183,7 @@ export default function MediaCard({ item, onDelete, onCopy, textContents, onPrev
             <button onClick={() => onDownload(item)} className="card-action" style={{ background: 'rgba(0,0,0,0.04)', color: '#999' }}>Download</button>
           )}
           <div style={{ flex: 1 }} />
-          <button onClick={() => onDelete(item)} className="card-action" style={{ background: 'rgba(200,80,60,0.08)', color: '#c85c3c', padding: '6px 10px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          <button onClick={() => onDelete(item)} className="card-action" style={{ background: 'rgba(0,0,0,0.04)', color: '#999', padding: '6px 10px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
             <svg width="14" height="14" viewBox="0 0 16 16" fill="none">
               <path d="M2 4h12M5 4V2.5A.5.5 0 015.5 2h5a.5.5 0 01.5.5V4M4 4v9.5a1 1 0 001 1h6a1 1 0 001-1V4" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round"/>
               <path d="M6 7v5M10 7v5" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round"/>
