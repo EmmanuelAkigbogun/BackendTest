@@ -2,12 +2,12 @@ import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { supabase } from './supabaseClient';
 
 const FILE_TYPES = {
-  image:    ['jpg','jpeg','png','gif','webp','svg','avif','bmp','ico'],
-  video:    ['mp4','mov','avi','mkv','webm','flv','wmv','m4v'],
-  audio:    ['mp3','wav','ogg','flac','aac','m4a','wma'],
-  pdf:      ['pdf'],
-  text:     ['txt','md','csv','json','xml','yaml','yml','toml','ini','cfg','log','js','ts','jsx','tsx','css','scss','less','html','htm','py','rb','java','c','cpp','h','hpp','cs','go','rs','php','swift','kt','dart','lua','r','sh','bat','ps1','zsh','bash','fish','sql','pl','pm','env','gitignore','dockerfile','makefile'],
-  document: ['doc','docx','xls','xlsx','ppt','pptx'],
+  image: ['jpg', 'jpeg', 'png', 'gif', 'webp', 'svg', 'avif', 'bmp', 'ico'],
+  video: ['mp4', 'mov', 'avi', 'mkv', 'webm', 'flv', 'wmv', 'm4v'],
+  audio: ['mp3', 'wav', 'ogg', 'flac', 'aac', 'm4a', 'wma'],
+  pdf: ['pdf'],
+  text: ['txt', 'md', 'csv', 'json', 'xml', 'yaml', 'yml', 'toml', 'ini', 'cfg', 'log', 'js', 'ts', 'jsx', 'tsx', 'css', 'scss', 'less', 'html', 'htm', 'py', 'rb', 'java', 'c', 'cpp', 'h', 'hpp', 'cs', 'go', 'rs', 'php', 'swift', 'kt', 'dart', 'lua', 'r', 'sh', 'bat', 'ps1', 'zsh', 'bash', 'fish', 'sql', 'pl', 'pm', 'env', 'gitignore', 'dockerfile', 'makefile'],
+  document: ['doc', 'docx', 'xls', 'xlsx', 'ppt', 'pptx'],
 };
 
 function getFileType(filename) {
@@ -19,14 +19,14 @@ function getFileType(filename) {
 }
 
 const TYPE_META = {
-  text:     { label: 'TEXT',  color: '#94a3b8', bg: 'rgba(148,163,184,0.12)' },
-  image:    { label: 'IMAGE', color: '#a78bfa', bg: 'rgba(167,139,250,0.12)' },
-  video:    { label: 'VIDEO', color: '#60a5fa', bg: 'rgba(96,165,250,0.12)'  },
-  audio:    { label: 'AUDIO', color: '#f472b6', bg: 'rgba(244,114,182,0.12)' },
-  pdf:      { label: 'PDF',   color: '#f87171', bg: 'rgba(248,113,113,0.12)' },
-  document: { label: 'DOC',   color: '#fbbf24', bg: 'rgba(251,191,36,0.12)'  },
-  file:     { label: 'FILE',  color: '#22d3ee', bg: 'rgba(34,211,238,0.12)'  },
-  link:     { label: 'LINK',  color: '#34d399', bg: 'rgba(52,211,153,0.12)'  },
+  text: { label: 'TEXT', color: '#94a3b8', bg: 'rgba(148,163,184,0.12)' },
+  image: { label: 'IMAGE', color: '#a78bfa', bg: 'rgba(167,139,250,0.12)' },
+  video: { label: 'VIDEO', color: '#60a5fa', bg: 'rgba(96,165,250,0.12)' },
+  audio: { label: 'AUDIO', color: '#f472b6', bg: 'rgba(244,114,182,0.12)' },
+  pdf: { label: 'PDF', color: '#f87171', bg: 'rgba(248,113,113,0.12)' },
+  document: { label: 'DOC', color: '#fbbf24', bg: 'rgba(251,191,36,0.12)' },
+  file: { label: 'FILE', color: '#22d3ee', bg: 'rgba(34,211,238,0.12)' },
+  link: { label: 'LINK', color: '#34d399', bg: 'rgba(52,211,153,0.12)' },
 };
 
 function useTilt(ref) {
@@ -59,7 +59,7 @@ function PreviewModal({ item, onClose }) {
 
   const renderContent = () => {
     if (displayType === 'image') return (
-      <img src={item.content} alt={item.file_name} style={{ maxWidth: '95vw', maxHeight: '90vh', objectFit: 'contain', borderRadius: 12 }} />
+      <img src={item.content} alt={item.file_name} style={{ maxWidth: '95vw', maxHeight: '90vh', objectFit: 'cover', borderRadius: 12 }} />
     );
     if (displayType === 'video') return (
       <video controls autoPlay style={{ maxWidth: '95vw', maxHeight: '90vh', borderRadius: 12 }}>
@@ -117,7 +117,7 @@ function MediaCard({ item, onDelete, onCopy, textContents, onPreview, onDownload
 
   useEffect(() => {
     if (!videoRef.current) return;
-    hovered ? videoRef.current.play().catch(() => {}) : videoRef.current.pause();
+    hovered ? videoRef.current.play().catch(() => { }) : videoRef.current.pause();
   }, [hovered]);
 
   const cardStyle = {
@@ -146,16 +146,16 @@ function MediaCard({ item, onDelete, onCopy, textContents, onPreview, onDownload
           transition: 'transform 3s ease',
           transformOrigin: 'top center',
           transform: hovered ? `translateY(calc(-100% + ${previewH}px))` : 'translateY(0)',
-        }}/>
+        }} />
       </div>
     );
     if (displayType === 'video') return (
       <>
-        <video ref={videoRef} src={item.content} muted loop style={{ width: '100%', height: '100%', objectFit: 'cover' }}/>
+        <video ref={videoRef} src={item.content} muted loop style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
         {!hovered && (
           <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
             <div style={{ width: 52, height: 52, borderRadius: '50%', background: 'rgba(255,255,255,0.15)', border: '1px solid rgba(255,255,255,0.25)', backdropFilter: 'blur(6px)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-              <svg width="18" height="18" viewBox="0 0 20 20" fill="white"><path d="M6 4l12 6-12 6V4z"/></svg>
+              <svg width="18" height="18" viewBox="0 0 20 20" fill="white"><path d="M6 4l12 6-12 6V4z" /></svg>
             </div>
           </div>
         )}
@@ -164,7 +164,7 @@ function MediaCard({ item, onDelete, onCopy, textContents, onPreview, onDownload
     if (displayType === 'audio') return (
       <div style={{ width: '100%', height: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 20, background: tm.bg }}>
         <div style={{ display: 'flex', alignItems: 'flex-end', gap: 3, height: 48 }}>
-          {[3,6,9,7,10,5,8,6,9,4,7,10,5,8,4].map((h, i) => (
+          {[3, 6, 9, 7, 10, 5, 8, 6, 9, 4, 7, 10, 5, 8, 4].map((h, i) => (
             <div key={i} style={{
               width: 5, borderRadius: 3,
               height: `${h * 4}px`,
@@ -172,14 +172,14 @@ function MediaCard({ item, onDelete, onCopy, textContents, onPreview, onDownload
               opacity: hovered ? 1 : 0.35,
               transition: `all ${0.12 + i * 0.018}s ease`,
               animation: hovered ? `bar ${0.45 + i * 0.06}s ease-in-out infinite alternate` : 'none',
-            }}/>
+            }} />
           ))}
         </div>
-        <audio controls src={item.content} style={{ width: '80%' }}/>
+        <audio controls src={item.content} style={{ width: '80%' }} />
       </div>
     );
     if (displayType === 'pdf') return (
-      <embed src={item.content} type="application/pdf" style={{ width: '100%', height: '100%' }}/>
+      <embed src={item.content} type="application/pdf" style={{ width: '100%', height: '100%' }} />
     );
     if (displayType === 'text') {
       const content = item.type === 'text' ? item.content : (textContents[item.id] || '…');
@@ -198,8 +198,8 @@ function MediaCard({ item, onDelete, onCopy, textContents, onPreview, onDownload
     return (
       <div style={{ width: '100%', height: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 10, background: tm.bg }}>
         <svg width="38" height="38" viewBox="0 0 38 38" fill="none">
-          <rect x="7" y="3" width="24" height="32" rx="3" stroke={tm.color} strokeWidth="1.4" fill={tm.bg}/>
-          <path d="M13 13h12M13 19h8M13 25h10" stroke={tm.color} strokeWidth="1.3" strokeLinecap="round"/>
+          <rect x="7" y="3" width="24" height="32" rx="3" stroke={tm.color} strokeWidth="1.4" fill={tm.bg} />
+          <path d="M13 13h12M13 19h8M13 25h10" stroke={tm.color} strokeWidth="1.3" strokeLinecap="round" />
         </svg>
         <span style={{ fontSize: 11, color: tm.color, maxWidth: 120, textAlign: 'center', wordBreak: 'break-all' }}>{item.file_name}</span>
       </div>
@@ -214,7 +214,7 @@ function MediaCard({ item, onDelete, onCopy, textContents, onPreview, onDownload
       >
         <div style={{ position: 'absolute', inset: 0 }}>{renderPreview()}</div>
         {displayType !== 'text' && !hovered && (
-          <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(to bottom, transparent 55%, rgba(0,0,0,0.06))', pointerEvents: 'none' }}/>
+          <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(to bottom, transparent 55%, rgba(0,0,0,0.06))', pointerEvents: 'none' }} />
         )}
       </div>
 
@@ -231,15 +231,10 @@ function MediaCard({ item, onDelete, onCopy, textContents, onPreview, onDownload
             <span style={{ fontSize: 11, color: '#b5aea8', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', minWidth: 0 }}>{item.type === 'link' ? item.content : item.file_name}</span>
           )}
         </div>
-        {item.type === 'link' && (
-          <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 8 }}>
-            <button onClick={() => onPreview(item)} className="card-action" style={{ background: 'rgba(0,0,0,0.04)', color: '#999' }}>Preview</button>
-            <button onClick={() => onCopy(item.content)} className="card-action" style={{ background: 'rgba(0,0,0,0.04)', color: '#999' }}>Copy URL</button>
-          </div>
-        )}
         <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-          {item.type !== 'link' && (
-            <button onClick={() => onPreview(item)} className="card-action" style={{ background: 'rgba(0,0,0,0.04)', color: '#999' }}>Preview</button>
+          <button onClick={() => onPreview(item)} className="card-action" style={{ background: 'rgba(0,0,0,0.04)', color: '#999' }}>Preview</button>
+          {item.type === 'link' && (
+            <button onClick={() => onCopy(item.content)} className="card-action" style={{ background: 'rgba(0,0,0,0.04)', color: '#999' }}>Copy URL</button>
           )}
           {item.type !== 'text' && item.type !== 'link' && (
             <a href={item.content} target="_blank" rel="noreferrer" onClick={e => e.stopPropagation()} className="card-action" style={{ background: 'rgba(0,0,0,0.04)', color: '#999' }}>Open ↗</a>
@@ -254,8 +249,8 @@ function MediaCard({ item, onDelete, onCopy, textContents, onPreview, onDownload
           <div style={{ flex: 1 }} />
           <button onClick={() => onDelete(item)} className="card-action" style={{ background: 'rgba(200,80,60,0.08)', color: '#c85c3c', padding: '6px 10px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
             <svg width="14" height="14" viewBox="0 0 16 16" fill="none">
-              <path d="M2 4h12M5 4V2.5A.5.5 0 015.5 2h5a.5.5 0 01.5.5V4M4 4v9.5a1 1 0 001 1h6a1 1 0 001-1V4" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round"/>
-              <path d="M6 7v5M10 7v5" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round"/>
+              <path d="M2 4h12M5 4V2.5A.5.5 0 015.5 2h5a.5.5 0 01.5.5V4M4 4v9.5a1 1 0 001 1h6a1 1 0 001-1V4" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round" />
+              <path d="M6 7v5M10 7v5" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" />
             </svg>
           </button>
         </div>
@@ -293,8 +288,8 @@ function Sidebar({ tree, activeFolder, onSelect, onNewFolder, onDeleteFolder, si
             className={`sidebar-item ${activeFolder === null ? 'active' : ''}`}
           >
             <svg width="14" height="14" viewBox="0 0 16 16" fill="none" style={{ flexShrink: 0 }}>
-              <rect x="2" y="3" width="12" height="10" rx="2" stroke="currentColor" strokeWidth="1.3" fill="none"/>
-              <path d="M2 7h12" stroke="currentColor" strokeWidth="1.3"/>
+              <rect x="2" y="3" width="12" height="10" rx="2" stroke="currentColor" strokeWidth="1.3" fill="none" />
+              <path d="M2 7h12" stroke="currentColor" strokeWidth="1.3" />
             </svg>
             <span>All Items</span>
           </div>
@@ -377,13 +372,13 @@ function FolderTreeNode({ node, depth, activeFolder, expandedSet, onToggleExpand
         {hasChildren ? (
           <svg className="sidebar-chevron" width="10" height="10" viewBox="0 0 10 10" fill="none"
             style={{ flexShrink: 0, transform: isExpanded ? 'rotate(90deg)' : 'rotate(0deg)', transition: 'transform 0.18s' }}>
-            <path d="M3 2l4 3-4 3" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round"/>
+            <path d="M3 2l4 3-4 3" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round" />
           </svg>
         ) : (
           <div style={{ width: 10, flexShrink: 0 }} />
         )}
         <svg width="14" height="14" viewBox="0 0 16 16" fill="none" style={{ flexShrink: 0 }}>
-          <path d="M2 4a1 1 0 011-1h3.586a1 1 0 01.707.293L8 4h5a1 1 0 011 1v7a1 1 0 01-1 1H3a1 1 0 01-1-1V4z" fill={isActive ? '#1a1a1a' : '#ccc'}/>
+          <path d="M2 4a1 1 0 011-1h3.586a1 1 0 01.707.293L8 4h5a1 1 0 011 1v7a1 1 0 01-1 1H3a1 1 0 01-1-1V4z" fill={isActive ? '#1a1a1a' : '#ccc'} />
         </svg>
         <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{node.name}</span>
         <button
@@ -434,8 +429,8 @@ function FolderCard({ folder, itemCount, onNavigate }) {
       }}
     >
       <svg width="48" height="48" viewBox="0 0 48 48" fill="none" style={{ opacity: hovered ? 1 : 0.8, transition: 'opacity 0.2s' }}>
-        <path d="M6 12a3 3 0 013-3h10.757a3 3 0 012.122.879L24 12h15a3 3 0 013 3v21a3 3 0 01-3 3H9a3 3 0 01-3-3V12z" fill={hovered ? '#1a1a1a' : '#ccc'}/>
-        <path d="M6 18h36" stroke="rgba(255,255,255,0.3)" strokeWidth="1.5"/>
+        <path d="M6 12a3 3 0 013-3h10.757a3 3 0 012.122.879L24 12h15a3 3 0 013 3v21a3 3 0 01-3 3H9a3 3 0 01-3-3V12z" fill={hovered ? '#1a1a1a' : '#ccc'} />
+        <path d="M6 18h36" stroke="rgba(255,255,255,0.3)" strokeWidth="1.5" />
       </svg>
       <span style={{ fontSize: 14, fontWeight: 600, color: hovered ? '#1a1a1a' : '#666', textAlign: 'center', wordBreak: 'break-word', transition: 'color 0.2s' }}>
         {folder.name}
@@ -448,19 +443,19 @@ function FolderCard({ folder, itemCount, onNavigate }) {
 }
 
 export default function DashboardPage({ session, onSignOut }) {
-  const [message, setMessage]           = useState('');
+  const [message, setMessage] = useState('');
   const [selectedFile, setSelectedFile] = useState(null);
-  const [history, setHistory]           = useState([]);
-  const [folders, setFolders]           = useState([]);
+  const [history, setHistory] = useState([]);
+  const [folders, setFolders] = useState([]);
   const [activeFolder, setActiveFolder] = useState(null);
-  const [loading, setLoading]           = useState(false);
+  const [loading, setLoading] = useState(false);
   const [textContents, setTextContents] = useState({});
-  const [toast, setToast]               = useState('');
-  const [previewItem, setPreviewItem]   = useState(null);
-  const [sidebarOpen, setSidebarOpen]   = useState(false);
-  const [expandedSet, setExpandedSet]   = useState(new Set());
+  const [toast, setToast] = useState('');
+  const [previewItem, setPreviewItem] = useState(null);
+  const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [expandedSet, setExpandedSet] = useState(new Set());
   const [folderCounts, setFolderCounts] = useState({});
-  const [linkMode, setLinkMode]         = useState(false);
+  const [linkMode, setLinkMode] = useState(false);
   const fetchedRef = useRef({});
 
   const fetchHistory = async () => {
@@ -912,7 +907,7 @@ export default function DashboardPage({ session, onSignOut }) {
           <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
             <button className="hamburger" onClick={() => setSidebarOpen(true)}>
               <svg width="18" height="18" viewBox="0 0 18 18" fill="none">
-                <path d="M2 5h14M2 9h14M2 13h14" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round"/>
+                <path d="M2 5h14M2 9h14M2 13h14" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
               </svg>
             </button>
             <div style={{
@@ -921,7 +916,7 @@ export default function DashboardPage({ session, onSignOut }) {
               display: 'flex', alignItems: 'center', justifyContent: 'center',
             }}>
               <svg width="13" height="13" viewBox="0 0 14 14" fill="none">
-                <path d="M2 7h10M7 2v10" stroke="white" strokeWidth="1.8" strokeLinecap="round"/>
+                <path d="M2 7h10M7 2v10" stroke="white" strokeWidth="1.8" strokeLinecap="round" />
               </svg>
             </div>
             <div>
@@ -982,12 +977,12 @@ export default function DashboardPage({ session, onSignOut }) {
                     onMouseLeave={e => e.currentTarget.style.color = '#999'}
                   >
                     <svg width="15" height="15" viewBox="0 0 16 16" fill="none">
-                      <path d="M8 2v9M5 5l3-3 3 3" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round"/>
-                      <path d="M2 11v2a1 1 0 001 1h10a1 1 0 001-1v-2" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round"/>
+                      <path d="M8 2v9M5 5l3-3 3 3" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" />
+                      <path d="M2 11v2a1 1 0 001 1h10a1 1 0 001-1v-2" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" />
                     </svg>
                     {selectedFile ? selectedFile.name : 'Attach a file'}
                   </label>
-                  <input id="fileInput" type="file" style={{ display: 'none' }} onChange={e => { setSelectedFile(e.target.files[0]); setLinkMode(false); }}/>
+                  <input id="fileInput" type="file" style={{ display: 'none' }} onChange={e => { setSelectedFile(e.target.files[0]); setLinkMode(false); }} />
                   <button type="button" onClick={() => { setLinkMode(!linkMode); setSelectedFile(null); document.getElementById('fileInput').value = ''; }}
                     className="card-action"
                     style={{
@@ -998,8 +993,8 @@ export default function DashboardPage({ session, onSignOut }) {
                     }}
                   >
                     <svg width="14" height="14" viewBox="0 0 16 16" fill="none">
-                      <path d="M7 9a3 3 0 015-3l1 1" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round"/>
-                      <path d="M9 7a3 3 0 01-5 3l-1-1" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round"/>
+                      <path d="M7 9a3 3 0 015-3l1 1" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" />
+                      <path d="M9 7a3 3 0 01-5 3l-1-1" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" />
                     </svg>
                     Link
                   </button>
@@ -1015,7 +1010,7 @@ export default function DashboardPage({ session, onSignOut }) {
           <div>
             <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 20 }}>
               <span style={{ fontSize: 10, fontWeight: 600, letterSpacing: '0.18em', color: '#b5aea8', textTransform: 'uppercase' }}>{activeFolderName}</span>
-              <div style={{ flex: 1, height: 1, background: 'rgba(0,0,0,0.06)' }}/>
+              <div style={{ flex: 1, height: 1, background: 'rgba(0,0,0,0.06)' }} />
               <span style={{ fontSize: 10, color: '#ccc' }}>
                 {currentSubfolders.length > 0 && `${currentSubfolders.length} folder${currentSubfolders.length > 1 ? 's' : ''}`}
                 {currentSubfolders.length > 0 && history.length > 0 && ' · '}

@@ -111,7 +111,7 @@ export default function AuthPage() {
   };
 
   return (
-    <div style={{
+    <div className="auth-page" style={{
       minHeight: '100vh',
       display: 'flex',
       background: '#e8e0db',
@@ -184,10 +184,17 @@ export default function AuthPage() {
           padding: 0;
         }
         .toggle-link:hover { color: #1a1a1a; }
+        @media (max-width: 640px) {
+          .auth-page { flex-direction: column !important; }
+          .auth-form { width: 100% !important; min-width: 0 !important; padding: 32px 24px !important; }
+          .auth-art { display: none !important; }
+          .auth-heading { font-size: 26px !important; }
+          .auth-wordmark { margin-bottom: 40px !important; }
+        }
       `}</style>
 
       {/* ── Left: Form ── */}
-      <div style={{
+      <div className="auth-form" style={{
         width: '46%',
         minWidth: 360,
         background: 'white',
@@ -200,14 +207,14 @@ export default function AuthPage() {
       }}>
         <div>
           {/* Wordmark */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 56 }}>
+          <div className="auth-wordmark" style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 56 }}>
             <div style={{ width: 8, height: 8, borderRadius: '50%', background: '#1a1a1a' }}/>
             <span style={{ fontSize: 13, fontWeight: 500, letterSpacing: '0.06em', color: '#1a1a1a' }}>Portal</span>
           </div>
 
           {/* Heading */}
           <div style={{ marginBottom: 36 }}>
-            <h1 style={{ fontSize: 30, fontWeight: 600, color: '#111', margin: '0 0 8px', lineHeight: 1.2 }}>
+            <h1 className="auth-heading" style={{ fontSize: 30, fontWeight: 600, color: '#111', margin: '0 0 8px', lineHeight: 1.2 }}>
               {isSignUp ? 'Create an account' : 'Welcome back'}
             </h1>
             <p style={{ fontSize: 14, color: '#999', margin: 0 }}>
@@ -282,7 +289,7 @@ export default function AuthPage() {
       </div>
 
       {/* ── Right: Art ── */}
-      <div style={{
+      <div className="auth-art" style={{
         flex: 1,
         background: '#ddd6cf',
         display: 'flex',
