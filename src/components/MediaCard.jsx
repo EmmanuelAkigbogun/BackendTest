@@ -151,7 +151,7 @@ export default function MediaCard({ item, onDelete, onCopy, textContents, onPrev
         style={{ position: 'relative', height: previewH, overflow: 'hidden', cursor: selectMode ? 'default' : 'pointer' }}
         onClick={() => selectMode ? onToggleSelect(item.id) : onPreview(item)}
       >
-        <div style={{ position: 'absolute', inset: 0 }}>{renderPreview()}</div>
+        <div style={{ position: 'absolute', inset: 0, pointerEvents: selectMode ? 'none' : 'auto' }}>{renderPreview()}</div>
         {displayType !== 'text' && !hovered && (
           <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(to bottom, transparent 55%, rgba(0,0,0,0.06))', pointerEvents: 'none' }} />
         )}

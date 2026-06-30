@@ -30,13 +30,13 @@ export default function DashboardPage({ session, onSignOut, theme, toggleTheme }
   const [showEditPopup, setShowEditPopup] = useState(null);
   const [selectMode, setSelectMode] = useState(false);
   const [selectedItems, setSelectedItems] = useState(new Set());
-  const [scrollToId, setScrollToId] = useState(null);
+  
   const [uploadCount, setUploadCount] = useState(0);
   const fetchedRef = useRef({});
 
   const fetchHistory = async () => {
     try {
-      let q = supabase.from('history').select('id, type, content, file_name, created_at, folder_id, edited_at').order('created_at', { ascending: false });
+      let q = supabase.from('history').select('id, type, content, file_name, created_at, folder_id, edited_at').order('created_at', { ascending: false }).order('id', { ascending: false });
       if (activeFolder) {
         q = q.eq('folder_id', activeFolder);
       } else {
@@ -121,15 +121,6 @@ export default function DashboardPage({ session, onSignOut, theme, toggleTheme }
   }, [selectedFiles.length, editFileAction]);
 
   useEffect(() => {
-    if (!scrollToId) return;
-    const el = document.getElementById(`history-${scrollToId}`);
-    if (el) {
-      el.scrollIntoView({ behavior: 'smooth', block: 'center' });
-      setScrollToId(null);
-    }
-  }, [history, scrollToId]);
-
-  useEffect(() => {
     history.filter(i => i.type !== 'text' && getFileType(i.file_name) === 'text').forEach(async item => {
       if (fetchedRef.current[item.id]) return;
       fetchedRef.current[item.id] = true;
@@ -151,11 +142,10 @@ export default function DashboardPage({ session, onSignOut, theme, toggleTheme }
       const userId = session.user.id;
 
       if (editingItem) {
+        let updateFields;
         if ((editingItem.type === 'text' || editingItem.type === 'link') && editFileAction !== 'file') {
-          const { error } = await supabase
-            .from('history')
-            .update({ content: message, edited_at: new Date().toISOString() })
-            .eq('id', editingItem.id);
+          updateFields = { content: message, edited_at: new Date().toISOString() };
+          const { error } = await supabase.from('history').update(updateFields).eq('id', editingItem.id);
           if (error) throw error;
         } else if (editFileAction === 'text') {
           const fileExt = editingItem.file_name.split('.').pop();
@@ -166,10 +156,8 @@ export default function DashboardPage({ session, onSignOut, theme, toggleTheme }
           const oldPath = editingItem.content.split('/storage/v1/object/public/uploads/')[1];
           if (oldPath) await supabase.storage.from('uploads').remove([oldPath]).catch(() => {});
           const { data: { publicUrl } } = supabase.storage.from('uploads').getPublicUrl(filePath);
-          const { error } = await supabase
-            .from('history')
-            .update({ content: publicUrl, edited_at: new Date().toISOString() })
-            .eq('id', editingItem.id);
+          updateFields = { content: publicUrl, edited_at: new Date().toISOString() };
+          const { error } = await supabase.from('history').update(updateFields).eq('id', editingItem.id);
           if (error) throw error;
         } else if (editFileAction === 'file' && selectedFiles.length) {
           const file = selectedFiles[0];
@@ -180,17 +168,13 @@ export default function DashboardPage({ session, onSignOut, theme, toggleTheme }
           const oldPath = editingItem.content.split('/storage/v1/object/public/uploads/')[1];
           if (oldPath) await supabase.storage.from('uploads').remove([oldPath]).catch(() => {});
           const { data: { publicUrl } } = supabase.storage.from('uploads').getPublicUrl(filePath);
-          const { error } = await supabase
-            .from('history')
-            .update({ content: publicUrl, type: 'file', file_name: file.name, edited_at: new Date().toISOString() })
-            .eq('id', editingItem.id);
+          updateFields = { content: publicUrl, type: 'file', file_name: file.name, edited_at: new Date().toISOString() };
+          const { error } = await supabase.from('history').update(updateFields).eq('id', editingItem.id);
           if (error) throw error;
         }
-        const editedId = editingItem.id;
-        setScrollToId(editedId);
+        setHistory(prev => prev.map(item => item.id === editingItem.id ? { ...item, ...updateFields } : item));
         setEditingItem(null); setEditFileAction(null); setMessage(''); setSelectedFiles([]);
         document.getElementById('fileInput').value = '';
-        fetchHistory();
         return;
       }
 
