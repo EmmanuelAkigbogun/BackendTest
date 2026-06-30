@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 
 function getFileType(filename) {
   const FILE_TYPES = {
-    image: ['jpg', 'jpeg', 'png', 'gif', 'webp', 'svg', 'avif', 'bmp', 'ico'],
+    image: ['jpg', 'jpeg', 'png', 'gif', 'webp', 'svg', 'avif', 'bmp', 'ico', 'jfif'],
     video: ['mp4', 'mov', 'avi', 'mkv', 'webm', 'flv', 'wmv', 'm4v'],
     audio: ['mp3', 'wav', 'ogg', 'flac', 'aac', 'm4a', 'wma'],
     pdf: ['pdf'],
