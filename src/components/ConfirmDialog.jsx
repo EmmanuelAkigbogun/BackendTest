@@ -1,4 +1,4 @@
-export default function ConfirmDialog({ message, onConfirm, onCancel }) {
+export default function ConfirmDialog({ message, onConfirm, onCancel, confirmLabel = 'Delete' }) {
   return (
     <div onClick={onCancel} style={{
       position: 'fixed', inset: 0, zIndex: 10000,
@@ -42,7 +42,7 @@ export default function ConfirmDialog({ message, onConfirm, onCancel }) {
               background: 'var(--bg-button)', color: 'var(--text-button)', fontSize: 13, fontWeight: 600,
               cursor: 'pointer', fontFamily: 'inherit',
             }}
-          >Delete</button>
+          >{confirmLabel}</button>
         </div>
       </div>
     </div>

@@ -1,10 +1,10 @@
 import { useState } from 'react';
 
-export default function FolderCard({ folder, itemCount, onNavigate }) {
+export default function FolderCard({ folder, itemCount, onNavigate, selectMode, selectedCount, onMoveSelected }) {
   const [hovered, setHovered] = useState(false);
   return (
     <div
-      onClick={() => onNavigate(folder.id)}
+      onClick={() => selectMode && selectedCount > 0 ? onMoveSelected(folder.id, folder.name) : onNavigate(folder.id)}
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
       style={{
@@ -13,12 +13,12 @@ export default function FolderCard({ folder, itemCount, onNavigate }) {
         border: hovered ? '1px solid var(--border-card-hover)' : '1px solid var(--border-card)',
         boxShadow: hovered ? '0 28px 64px var(--shadow-lg)' : '0 6px 24px var(--shadow-sm)',
         backdropFilter: 'blur(20px)',
-        cursor: 'pointer',
+        cursor: selectMode && selectedCount > 0 ? 'copy' : 'pointer',
         transition: 'transform 0.18s ease, border-color 0.25s, box-shadow 0.25s',
         transform: hovered ? 'translateY(-4px) scale(1.015)' : 'translateY(0) scale(1)',
         padding: '32px 20px',
         display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
-        gap: 10, minHeight: 180,
+        gap: 10, minHeight: 180, position: 'relative',
       }}
     >
       <svg width="48" height="48" viewBox="0 0 48 48" fill="none" style={{ opacity: hovered ? 1 : 0.8, transition: 'opacity 0.2s' }}>

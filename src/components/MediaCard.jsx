@@ -44,7 +44,7 @@ function useTilt(ref) {
   return { tilt, hovered, onEnter, onLeave, onMove };
 }
 
-export default function MediaCard({ item, onDelete, onCopy, textContents, onPreview, onDownload }) {
+export default function MediaCard({ item, onDelete, onCopy, textContents, onPreview, onDownload, onEdit, selectMode, selected, onToggleSelect }) {
   const ref = useRef(null);
   const { tilt, hovered, onEnter, onLeave, onMove } = useTilt(ref);
   const videoRef = useRef(null);
@@ -61,12 +61,18 @@ export default function MediaCard({ item, onDelete, onCopy, textContents, onPrev
     borderRadius: 20,
     overflow: 'hidden',
     background: 'var(--bg-surface)',
-    border: hovered ? '1px solid var(--border-card-hover)' : '1px solid var(--border-card)',
-    boxShadow: hovered
-      ? '0 28px 64px var(--shadow-lg)'
-      : '0 6px 24px var(--shadow-sm)',
+    border: selected
+      ? '1px solid var(--border-card-selected)'
+      : hovered
+        ? '1px solid var(--border-card-hover)'
+        : '1px solid var(--border-card)',
+    boxShadow: selected
+      ? '0 0 0 2px var(--border-card-selected), 0 28px 64px var(--shadow-lg)'
+      : hovered
+        ? '0 28px 64px var(--shadow-lg)'
+        : '0 6px 24px var(--shadow-sm)',
     backdropFilter: 'blur(20px)',
-    transform: hovered
+    transform: hovered && !selectMode
       ? `perspective(900px) rotateX(${tilt.x}deg) rotateY(${tilt.y}deg) translateY(-8px) scale(1.025)`
       : 'perspective(900px) rotateX(0) rotateY(0) translateY(0) scale(1)',
     transition: 'transform 0.18s ease, border-color 0.25s, box-shadow 0.25s',
@@ -140,14 +146,31 @@ export default function MediaCard({ item, onDelete, onCopy, textContents, onPrev
   };
 
   return (
-    <div ref={ref} style={cardStyle} onMouseEnter={onEnter} onMouseLeave={onLeave} onMouseMove={onMove}>
+    <div ref={ref} id={`history-${item.id}`} style={cardStyle} onMouseEnter={onEnter} onMouseLeave={onLeave} onMouseMove={onMove}>
       <div
-        style={{ position: 'relative', height: previewH, overflow: 'hidden', cursor: 'pointer' }}
-        onClick={() => onPreview(item)}
+        style={{ position: 'relative', height: previewH, overflow: 'hidden', cursor: selectMode ? 'default' : 'pointer' }}
+        onClick={() => selectMode ? onToggleSelect(item.id) : onPreview(item)}
       >
         <div style={{ position: 'absolute', inset: 0 }}>{renderPreview()}</div>
         {displayType !== 'text' && !hovered && (
           <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(to bottom, transparent 55%, rgba(0,0,0,0.06))', pointerEvents: 'none' }} />
+        )}
+        {selectMode && (
+          <div style={{
+            position: 'absolute', top: 10, right: 10,
+            width: 24, height: 24, borderRadius: '50%',
+            background: selected ? 'var(--bg-button)' : 'rgba(255,255,255,0.5)',
+            border: selected ? 'none' : '2px solid var(--text-muted-lightest)',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            backdropFilter: 'blur(4px)',
+            pointerEvents: 'none',
+          }}>
+            {selected && (
+              <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
+                <path d="M2 6l3 3 5-5" stroke="var(--text-button)" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+              </svg>
+            )}
+          </div>
         )}
       </div>
 
@@ -155,13 +178,21 @@ export default function MediaCard({ item, onDelete, onCopy, textContents, onPrev
         padding: '10px 14px',
         borderTop: '1px solid var(--border-light)',
       }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
+        {(() => {
+          const displayName = item.file_name || (item.type === 'text' ? (item.content.length > 40 ? item.content.slice(0, 40) + '…' : item.content) : (item.type === 'link' ? (() => { try { return new URL(item.content).hostname.replace('www.', '') } catch { return item.content } })() : null));
+          return displayName ? (
+            <div style={{ fontSize: 11, color: 'var(--text-muted-lighter)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', marginBottom: 4 }}>{displayName}</div>
+          ) : null;
+        })()}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8, overflow: 'hidden' }}>
           <span style={{ fontSize: 9, fontWeight: 700, letterSpacing: '0.1em', padding: '3px 8px', borderRadius: 6, background: tm.bg, color: tm.color, flexShrink: 0 }}>{tm.label}</span>
-          <span style={{ fontSize: 10, color: 'var(--text-muted-lightest)', flexShrink: 0 }}>
+          <span style={{ fontSize: 10, color: 'var(--text-muted-lightest)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
             {new Date(item.created_at).toLocaleString(undefined, { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
           </span>
-          {item.file_name && (
-            <span style={{ fontSize: 11, color: 'var(--text-muted-lighter)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', minWidth: 0 }}>{item.file_name}</span>
+          {item.edited_at && (
+            <span style={{ fontSize: 10, color: 'var(--text-muted-lightest)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+              · edited {new Date(item.edited_at).toLocaleString(undefined, { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
+            </span>
           )}
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
@@ -172,17 +203,33 @@ export default function MediaCard({ item, onDelete, onCopy, textContents, onPrev
             </svg>
           </button>
           {item.type !== 'text' && (
-            <a href={item.content} target="_blank" rel="noreferrer" onClick={e => e.stopPropagation()} className="card-action" style={{ background: 'var(--card-action-bg)', color: 'var(--card-action-color)' }}>Open ↗</a>
+            <a href={item.content} target="_blank" rel="noreferrer" onClick={e => e.stopPropagation()} className="card-action" style={{ background: 'var(--card-action-bg)', color: 'var(--card-action-color)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flexShrink: 1, minWidth: 0 }}>Open ↗</a>
           )}
           {item.type === 'text' && (
-            <button onClick={() => onCopy(item.content)} className="card-action" style={{ background: 'var(--card-action-bg)', color: 'var(--card-action-color)' }}>Copy</button>
+            <button onClick={() => onCopy(item.content)} className="card-action" style={{ background: 'var(--card-action-bg)', color: 'var(--card-action-color)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flexShrink: 1, minWidth: 0 }}>Copy</button>
           )}
           {item.type === 'link' ? (
-            <button onClick={() => onCopy(item.content)} className="card-action" style={{ background: 'var(--card-action-bg)', color: 'var(--card-action-color)' }}>Copy URL</button>
+            <button onClick={() => onCopy(item.content)} className="card-action" style={{ background: 'var(--card-action-bg)', color: 'var(--card-action-color)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flexShrink: 1, minWidth: 0 }}>Copy URL</button>
           ) : (
-            <button onClick={() => onDownload(item)} className="card-action" style={{ background: 'var(--card-action-bg)', color: 'var(--card-action-color)' }}>Download</button>
+            <button onClick={() => onDownload(item)} className="card-action" style={{ background: 'var(--card-action-bg)', color: 'var(--card-action-color)', padding: '6px 10px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <svg width="13" height="13" viewBox="0 0 16 16" fill="none">
+                <path d="M8 2v8M4 6l4 4 4-4" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round"/>
+                <path d="M2 12v1.5A1.5 1.5 0 003.5 15h9a1.5 1.5 0 001.5-1.5V12" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round"/>
+              </svg>
+            </button>
           )}
           <div style={{ flex: 1 }} />
+          <button onClick={() => onEdit(item)} className="card-action" style={{
+            background: 'var(--card-action-bg)', color: 'var(--card-action-color)',
+            padding: '6px 10px', display: 'flex', alignItems: 'center', justifyContent: 'center',
+            opacity: hovered ? 1 : 0,
+            transition: 'opacity 0.15s',
+          }}>
+            <svg width="13" height="13" viewBox="0 0 16 16" fill="none">
+              <path d="M11.5 2.5a1.5 1.5 0 012 2L5 13l-3 1 1-3 8.5-8.5z" stroke="currentColor" strokeWidth="1.3" strokeLinejoin="round" strokeLinecap="round"/>
+              <path d="M9.5 4.5l2 2" stroke="currentColor" strokeWidth="1.2" strokeLinejoin="round"/>
+            </svg>
+          </button>
           <button onClick={() => onDelete(item)} className="card-action" style={{ background: 'var(--card-action-bg)', color: 'var(--card-action-color)', padding: '6px 10px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
             <svg width="14" height="14" viewBox="0 0 16 16" fill="none">
               <path d="M2 4h12M5 4V2.5A.5.5 0 015.5 2h5a.5.5 0 01.5.5V4M4 4v9.5a1 1 0 001 1h6a1 1 0 001-1V4" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round"/>

@@ -5,6 +5,7 @@ import FolderCard from './components/FolderCard';
 import Sidebar, { buildTree } from './components/Sidebar';
 import PreviewModal from './components/PreviewModal';
 import ConfirmDialog from './components/ConfirmDialog';
+import EditPopup from './components/EditPopup';
 import { DashboardDoodles } from './Doodles';
 import './DashboardPage.css';
 
@@ -23,11 +24,17 @@ export default function DashboardPage({ session, onSignOut, theme, toggleTheme }
   const [linkMode, setLinkMode] = useState(false);
   const [expandedSet, setExpandedSet] = useState(new Set());
   const [folderCounts, setFolderCounts] = useState({});
+  const [editingItem, setEditingItem] = useState(null);
+  const [editFileAction, setEditFileAction] = useState(null);
+  const [showEditPopup, setShowEditPopup] = useState(null);
+  const [selectMode, setSelectMode] = useState(false);
+  const [selectedItems, setSelectedItems] = useState(new Set());
+  const [scrollToId, setScrollToId] = useState(null);
   const fetchedRef = useRef({});
 
   const fetchHistory = async () => {
     try {
-      let q = supabase.from('history').select('id, type, content, file_name, created_at, folder_id').order('created_at', { ascending: false });
+      let q = supabase.from('history').select('id, type, content, file_name, created_at, folder_id, edited_at').order('created_at', { ascending: false });
       if (activeFolder) {
         q = q.eq('folder_id', activeFolder);
       } else {
@@ -106,6 +113,21 @@ export default function DashboardPage({ session, onSignOut, theme, toggleTheme }
   }, [activeFolder, folders]);
 
   useEffect(() => {
+    if (selectedFile && editFileAction === 'file') {
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+  }, [selectedFile, editFileAction]);
+
+  useEffect(() => {
+    if (!scrollToId) return;
+    const el = document.getElementById(`history-${scrollToId}`);
+    if (el) {
+      el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      setScrollToId(null);
+    }
+  }, [history, scrollToId]);
+
+  useEffect(() => {
     history.filter(i => i.type !== 'text' && getFileType(i.file_name) === 'text').forEach(async item => {
       if (fetchedRef.current[item.id]) return;
       fetchedRef.current[item.id] = true;
@@ -120,11 +142,55 @@ export default function DashboardPage({ session, onSignOut, theme, toggleTheme }
 
   const handleSend = async (e) => {
     e.preventDefault();
-    if (!message.trim() && !selectedFile && !linkMode) return;
-    if (linkMode && !message.trim()) return;
+    if (!editingItem && !message.trim() && !selectedFile && !linkMode) return;
+    if (!editingItem && linkMode && !message.trim()) return;
     setLoading(true);
     try {
       const userId = session.user.id;
+
+      if (editingItem) {
+        if ((editingItem.type === 'text' || editingItem.type === 'link') && editFileAction !== 'file') {
+          const { error } = await supabase
+            .from('history')
+            .update({ content: message, edited_at: new Date().toISOString() })
+            .eq('id', editingItem.id);
+          if (error) throw error;
+        } else if (editFileAction === 'text') {
+          const fileExt = editingItem.file_name.split('.').pop();
+          const filePath = `${userId}/${crypto.randomUUID()}.${fileExt}`;
+          const blob = new Blob([message], { type: 'text/plain' });
+          const { error: ue } = await supabase.storage.from('uploads').upload(filePath, blob);
+          if (ue) throw ue;
+          const oldPath = editingItem.content.split('/storage/v1/object/public/uploads/')[1];
+          if (oldPath) await supabase.storage.from('uploads').remove([oldPath]).catch(() => {});
+          const { data: { publicUrl } } = supabase.storage.from('uploads').getPublicUrl(filePath);
+          const { error } = await supabase
+            .from('history')
+            .update({ content: publicUrl, edited_at: new Date().toISOString() })
+            .eq('id', editingItem.id);
+          if (error) throw error;
+        } else if (editFileAction === 'file' && selectedFile) {
+          const fileExt = selectedFile.name.split('.').pop();
+          const filePath = `${userId}/${crypto.randomUUID()}.${fileExt}`;
+          const { error: ue } = await supabase.storage.from('uploads').upload(filePath, selectedFile);
+          if (ue) throw ue;
+          const oldPath = editingItem.content.split('/storage/v1/object/public/uploads/')[1];
+          if (oldPath) await supabase.storage.from('uploads').remove([oldPath]).catch(() => {});
+          const { data: { publicUrl } } = supabase.storage.from('uploads').getPublicUrl(filePath);
+          const { error } = await supabase
+            .from('history')
+            .update({ content: publicUrl, type: 'file', file_name: selectedFile.name, edited_at: new Date().toISOString() })
+            .eq('id', editingItem.id);
+          if (error) throw error;
+        }
+        const editedId = editingItem.id;
+        setScrollToId(editedId);
+        setEditingItem(null); setEditFileAction(null); setMessage(''); setSelectedFile(null);
+        document.getElementById('fileInput').value = '';
+        fetchHistory();
+        return;
+      }
+
       let payload;
       if (linkMode) {
         payload = { user_id: userId, type: 'link', content: message, file_name: null, folder_id: activeFolder };
@@ -160,6 +226,120 @@ export default function DashboardPage({ session, onSignOut, theme, toggleTheme }
           }
           const { error } = await supabase.from('history').delete().eq('id', item.id);
           if (error) throw error;
+          fetchHistory();
+        } catch (err) { alert(err.message); }
+      },
+    });
+  };
+
+  const handleEdit = (item) => {
+    if (item.type === 'text') {
+      setMessage(item.content);
+      setEditingItem(item);
+      setEditFileAction(null);
+      setLinkMode(false);
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    } else if (getFileType(item.file_name) === 'text' || item.type === 'link') {
+      setShowEditPopup(item);
+    } else {
+      setEditingItem(item);
+      setEditFileAction('file');
+      document.getElementById('fileInput').click();
+    }
+  };
+
+  const handleEditPopupChoice = (choice) => {
+    const item = showEditPopup;
+    setShowEditPopup(null);
+    if (!item) return;
+    setEditingItem(item);
+    if (choice === 'text') {
+      if (item.type === 'link') {
+        setMessage(item.content);
+      } else {
+        setEditFileAction('text');
+        const text = textContents[item.id];
+        if (text) {
+          setMessage(text);
+        } else {
+          fetch(item.content).then(r => r.text()).then(t => {
+            setMessage(t);
+            setTextContents(p => ({ ...p, [item.id]: t }));
+          }).catch(() => setMessage('(Failed to load)'));
+        }
+      }
+      setLinkMode(false);
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    } else {
+      setEditFileAction('file');
+      document.getElementById('fileInput').click();
+    }
+  };
+
+  const handleCancelEdit = () => {
+    setEditingItem(null);
+    setEditFileAction(null);
+    setMessage('');
+    setSelectedFile(null);
+    document.getElementById('fileInput').value = '';
+  };
+
+  const handleToggleSelectMode = () => {
+    setSelectMode(prev => {
+      if (prev) setSelectedItems(new Set());
+      return !prev;
+    });
+  };
+
+  const handleToggleSelect = (itemId) => {
+    setSelectedItems(prev => {
+      const next = new Set(prev);
+      if (next.has(itemId)) next.delete(itemId); else next.add(itemId);
+      return next;
+    });
+  };
+
+  const handleDeleteSelected = () => {
+    setConfirmState({
+      message: `Delete ${selectedItems.size} selected ${selectedItems.size === 1 ? 'item' : 'items'}?`,
+      onConfirm: async () => {
+        setConfirmState(null);
+        try {
+          const { data: items } = await supabase
+            .from('history')
+            .select('id, type, content')
+            .in('id', [...selectedItems]);
+          for (const item of (items || [])) {
+            if (item.type !== 'text' && item.content) {
+              const p = item.content.split('/storage/v1/object/public/uploads/')[1];
+              if (p) await supabase.storage.from('uploads').remove([p]).catch(() => {});
+            }
+          }
+          const { error } = await supabase.from('history').delete().in('id', [...selectedItems]);
+          if (error) throw error;
+          setSelectedItems(new Set());
+          setSelectMode(false);
+          fetchHistory();
+        } catch (err) { alert(err.message); }
+      },
+    });
+  };
+
+  const handleMoveSelected = (folderId, folderName) => {
+    if (selectedItems.size === 0) return;
+    setConfirmState({
+      message: `Move ${selectedItems.size} selected ${selectedItems.size === 1 ? 'item' : 'items'} to "${folderName}"?`,
+      confirmLabel: 'Move',
+      onConfirm: async () => {
+        setConfirmState(null);
+        try {
+          const { error } = await supabase
+            .from('history')
+            .update({ folder_id: folderId })
+            .in('id', [...selectedItems]);
+          if (error) throw error;
+          setSelectedItems(new Set());
+          setSelectMode(false);
           fetchHistory();
         } catch (err) { alert(err.message); }
       },
@@ -207,6 +387,14 @@ export default function DashboardPage({ session, onSignOut, theme, toggleTheme }
     } catch (err) { alert(err.message); }
   };
 
+  const handleRenameFolder = async (id, name) => {
+    try {
+      const { error } = await supabase.from('folders').update({ name }).eq('id', id);
+      if (error) throw error;
+      fetchFolders();
+    } catch (err) { alert(err.message); }
+  };
+
   const handleDeleteFolder = (id) => {
     setConfirmState({
       message: 'Delete this folder and all sub-folders? Items will become uncategorized.',
@@ -250,6 +438,7 @@ export default function DashboardPage({ session, onSignOut, theme, toggleTheme }
         onSelect={navigateToFolder}
         onNewFolder={handleNewFolder}
         onDeleteFolder={handleDeleteFolder}
+        onRenameFolder={handleRenameFolder}
         sidebarOpen={sidebarOpen}
         onClose={() => setSidebarOpen(false)}
         expandedSet={expandedSet}
@@ -334,7 +523,7 @@ export default function DashboardPage({ session, onSignOut, theme, toggleTheme }
               <textarea
                 className="compose-textarea"
                 rows={3}
-                placeholder={linkMode ? 'https://example.com' : (activeFolder ? `Add to ${activeFolderName}…` : "Write something, or attach a file below…")}
+                placeholder={editingItem ? 'Edit content…' : (linkMode ? 'https://example.com' : (activeFolder ? `Add to ${activeFolderName}…` : "Write something, or attach a file below…"))}
                 value={message}
                 onChange={e => setMessage(e.target.value)}
                 onKeyDown={e => { if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') handleSend(e); }}
@@ -355,13 +544,14 @@ export default function DashboardPage({ session, onSignOut, theme, toggleTheme }
                         <path d="M8 2v9M5 5l3-3 3 3" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" />
                         <path d="M2 11v2a1 1 0 001 1h10a1 1 0 001-1v-2" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" />
                       </svg>
-                      {selectedFile ? selectedFile.name : 'Attach a file'}
+                      {editingItem ? (selectedFile ? selectedFile.name : 'Replace file…') : (selectedFile ? selectedFile.name : 'Attach a file')}
                     </label>
                   )}
-                <button
-                  type="button"
-                  onClick={() => { setLinkMode(!linkMode); setSelectedFile(null); }}
-                  className="card-action"
+                {!editingItem && (
+                  <button
+                    type="button"
+                    onClick={() => { setLinkMode(!linkMode); setSelectedFile(null); }}
+                    className="card-action"
                     style={{
                       background: linkMode ? 'var(--link-mode-bg)' : 'var(--card-action-bg)',
                       color: linkMode ? 'var(--link-mode-color)' : 'var(--text-muted)',
@@ -374,11 +564,19 @@ export default function DashboardPage({ session, onSignOut, theme, toggleTheme }
                     </svg>
                     Link
                   </button>
+                )}
                 </div>
                 <input id="fileInput" type="file" style={{ display: 'none' }} onChange={e => setSelectedFile(e.target.files[0])} />
-                <button type="submit" disabled={loading} className="send-btn">
-                  {loading ? 'Sending…' : linkMode ? 'Add link' : 'Send entry'}
-                </button>
+                <div style={{ display: 'flex', gap: 8 }}>
+                  {editingItem && (
+                    <button type="button" onClick={handleCancelEdit} className="send-btn" style={{ background: 'none', color: 'var(--text-muted)', border: '1px solid var(--border-input)' }}>
+                      Cancel
+                    </button>
+                  )}
+                  <button type="submit" disabled={loading} className="send-btn">
+                    {loading ? 'Saving…' : editingItem ? 'Update entry' : (linkMode ? 'Add link' : 'Send entry')}
+                  </button>
+                </div>
               </div>
             </div>
           </form>
@@ -393,7 +591,48 @@ export default function DashboardPage({ session, onSignOut, theme, toggleTheme }
                 {history.length > 0 && `${history.length} file${history.length > 1 ? 's' : ''}`}
                 {currentSubfolders.length === 0 && history.length === 0 && 'empty'}
               </span>
+              <button
+                onClick={handleToggleSelectMode}
+                className="card-action"
+                style={{
+                  background: selectMode ? 'var(--bg-button)' : 'var(--card-action-bg)',
+                  color: selectMode ? 'var(--text-button)' : 'var(--text-muted)',
+                  display: 'flex', alignItems: 'center', gap: 5,
+                }}
+              >
+                <svg width="12" height="12" viewBox="0 0 16 16" fill="none">
+                  <rect x="2" y="2" width="12" height="12" rx="2" stroke="currentColor" strokeWidth="1.3" fill="none" />
+                  {selectMode && <path d="M5 8l2 2 4-4" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round" />}
+                </svg>
+                Select
+              </button>
+              {selectMode && selectedItems.size > 0 && activeFolder && (
+                <button
+                  onClick={() => handleMoveSelected(activeFolder, activeFolderName)}
+                  className="card-action"
+                  style={{
+                    background: 'var(--bg-button)',
+                    color: 'var(--text-button)',
+                    display: 'flex', alignItems: 'center', gap: 5,
+                  }}
+                >
+                  <svg width="12" height="12" viewBox="0 0 16 16" fill="none">
+                    <path d="M3 5h10M8 2v8M5 7l3 3 3-3" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round"/>
+                    <path d="M2 11v2a1 1 0 001 1h10a1 1 0 001-1v-2" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round"/>
+                  </svg>
+                  Paste
+                </button>
+              )}
             </div>
+
+            {selectMode && selectedItems.size > 0 && (
+              <div className="selection-bar">
+                <span className="selection-count">{selectedItems.size} selected</span>
+                <div style={{ flex: 1 }} />
+                <button onClick={() => setSelectedItems(new Set())} className="selection-action">Clear</button>
+                <button onClick={handleDeleteSelected} className="selection-action selection-action-danger">Delete</button>
+              </div>
+            )}
 
             {currentSubfolders.length === 0 && history.length === 0 ? (
               <div style={{ textAlign: 'center', padding: '80px 0', border: '1px dashed var(--border-subtle)', borderRadius: 20 }}>
@@ -402,13 +641,16 @@ export default function DashboardPage({ session, onSignOut, theme, toggleTheme }
                 </p>
               </div>
             ) : (
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(240px, 1fr))', gap: 20 }}>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: 20 }}>
                 {currentSubfolders.map(sf => (
                   <FolderCard
                     key={sf.id}
                     folder={sf}
                     itemCount={folderCounts[sf.id]}
                     onNavigate={navigateToFolder}
+                    selectMode={selectMode}
+                    selectedCount={selectedItems.size}
+                    onMoveSelected={handleMoveSelected}
                   />
                 ))}
                 {history.map(item => (
@@ -420,6 +662,10 @@ export default function DashboardPage({ session, onSignOut, theme, toggleTheme }
                     textContents={textContents}
                     onPreview={setPreviewItem}
                     onDownload={handleDownload}
+                    onEdit={handleEdit}
+                    selectMode={selectMode}
+                    selected={selectedItems.has(item.id)}
+                    onToggleSelect={handleToggleSelect}
                   />
                 ))}
               </div>
@@ -428,6 +674,14 @@ export default function DashboardPage({ session, onSignOut, theme, toggleTheme }
         </main>
       </div>
 
+      {showEditPopup && (
+        <EditPopup
+          fileName={showEditPopup.file_name}
+          onEditText={() => handleEditPopupChoice('text')}
+          onUploadFile={() => handleEditPopupChoice('file')}
+          onCancel={() => setShowEditPopup(null)}
+        />
+      )}
       {toast && (
         <div style={{
           position: 'fixed', top: 24, left: '50%', transform: 'translateX(-50%)',
@@ -445,6 +699,7 @@ export default function DashboardPage({ session, onSignOut, theme, toggleTheme }
           message={confirmState.message}
           onConfirm={confirmState.onConfirm}
           onCancel={() => setConfirmState(null)}
+          confirmLabel={confirmState.confirmLabel}
         />
       )}
     </div>

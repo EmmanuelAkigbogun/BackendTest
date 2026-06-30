@@ -22,10 +22,13 @@ export function getAllDescendantIds(folders, parentId) {
   return ids;
 }
 
-function FolderTreeNode({ node, depth, activeFolder, expandedSet, onToggleExpand, onSelect, onDeleteFolder, onClose }) {
+function FolderTreeNode({ node, depth, activeFolder, expandedSet, onToggleExpand, onSelect, onDeleteFolder, onRenameFolder, onClose }) {
   const isActive = activeFolder === node.id;
   const hasChildren = node.children && node.children.length > 0;
   const isExpanded = expandedSet.has(node.id);
+  const [renaming, setRenaming] = useState(false);
+  const [renameValue, setRenameValue] = useState(node.name);
+  const inputRef = useRef(null);
 
   const handleClick = () => {
     if (isActive && hasChildren) {
@@ -35,10 +38,30 @@ function FolderTreeNode({ node, depth, activeFolder, expandedSet, onToggleExpand
     }
   };
 
+  const startRename = (e) => {
+    e.stopPropagation();
+    setRenameValue(node.name);
+    setRenaming(true);
+    setTimeout(() => { if (inputRef.current) { inputRef.current.focus(); inputRef.current.select(); } }, 0);
+  };
+
+  const submitRename = () => {
+    if (renameValue.trim() && renameValue.trim() !== node.name) {
+      onRenameFolder(node.id, renameValue.trim());
+    }
+    setRenaming(false);
+  };
+
+  const handleRenameKey = (e) => {
+    e.stopPropagation();
+    if (e.key === 'Enter') { submitRename(); }
+    if (e.key === 'Escape') { setRenaming(false); }
+  };
+
   return (
     <div>
       <div
-        onClick={handleClick}
+        onClick={renaming ? undefined : handleClick}
         className={`sidebar-item ${isActive ? 'active' : ''}`}
         style={{ paddingLeft: 12 + depth * 16 }}
       >
@@ -53,11 +76,24 @@ function FolderTreeNode({ node, depth, activeFolder, expandedSet, onToggleExpand
         <svg width="14" height="14" viewBox="0 0 16 16" fill="none" style={{ flexShrink: 0 }}>
           <path d="M2 4a1 1 0 011-1h3.586a1 1 0 01.707.293L8 4h5a1 1 0 011 1v7a1 1 0 01-1 1H3a1 1 0 01-1-1V4z" fill={isActive ? 'var(--text-primary)' : 'var(--folder-icon-fill)'} />
         </svg>
-        <span style={{ whiteSpace: 'nowrap' }}>{node.name}</span>
-        <button
-          onClick={e => { e.stopPropagation(); onDeleteFolder(node.id); }}
-          className="sidebar-delete"
-        >✕</button>
+        {renaming ? (
+          <input
+            ref={inputRef}
+            value={renameValue}
+            onChange={e => setRenameValue(e.target.value)}
+            onKeyDown={handleRenameKey}
+            onBlur={submitRename}
+            onClick={e => e.stopPropagation()}
+            className="sidebar-input"
+            style={{ flex: 1, minWidth: 120, fontSize: 13, padding: '2px 6px', height: 24 }}
+          />
+        ) : (
+          <span style={{ whiteSpace: 'nowrap' }}>{node.name}</span>
+        )}
+        <div style={{ display: 'flex', gap: 4, marginLeft: 'auto' }}>
+          <button onClick={startRename} className="sidebar-delete" title="Rename" style={{ fontSize: 11, marginLeft: 0 }}>✎</button>
+          <button onClick={e => { e.stopPropagation(); onDeleteFolder(node.id); }} className="sidebar-delete" style={{ marginLeft: 0 }}>✕</button>
+        </div>
       </div>
       {hasChildren && isExpanded && (
         <div>
@@ -71,6 +107,7 @@ function FolderTreeNode({ node, depth, activeFolder, expandedSet, onToggleExpand
               onToggleExpand={onToggleExpand}
               onSelect={onSelect}
               onDeleteFolder={onDeleteFolder}
+              onRenameFolder={onRenameFolder}
               onClose={onClose}
             />
           ))}
@@ -80,7 +117,7 @@ function FolderTreeNode({ node, depth, activeFolder, expandedSet, onToggleExpand
   );
 }
 
-export default function Sidebar({ tree, activeFolder, onSelect, onNewFolder, onDeleteFolder, sidebarOpen, onClose, expandedSet, onToggleExpand, userEmail }) {
+export default function Sidebar({ tree, activeFolder, onSelect, onNewFolder, onDeleteFolder, onRenameFolder, sidebarOpen, onClose, expandedSet, onToggleExpand, userEmail }) {
   const [name, setName] = useState('');
   const inputRef = useRef(null);
 
@@ -123,6 +160,7 @@ export default function Sidebar({ tree, activeFolder, onSelect, onNewFolder, onD
               onToggleExpand={onToggleExpand}
               onSelect={onSelect}
               onDeleteFolder={onDeleteFolder}
+              onRenameFolder={onRenameFolder}
               onClose={onClose}
             />
           ))}

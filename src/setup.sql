@@ -34,3 +34,5 @@ CREATE POLICY "Users can delete their own folders"
 -- Allow 'link' type in history
 ALTER TABLE history DROP CONSTRAINT IF EXISTS history_type_check;
 ALTER TABLE history ADD CONSTRAINT history_type_check CHECK (type = ANY (ARRAY['text'::text, 'file'::text, 'link'::text]));
+
+ALTER TABLE history ADD COLUMN IF NOT EXISTS edited_at timestamptz;

@@ -237,6 +237,43 @@
 }
 .card-action:hover { opacity: 0.7; }
 
+.selection-bar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 16px;
+  margin-bottom: 16px;
+  border-radius: 12px;
+  background: var(--bg-surface);
+  border: 1px solid var(--border-card-selected);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+}
+.selection-count {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+.selection-action {
+  font-size: 11px;
+  padding: 5px 14px;
+  border-radius: 8px;
+  border: 1px solid var(--border-input);
+  background: var(--bg-surface);
+  color: var(--text-muted);
+  cursor: pointer;
+  font-family: inherit;
+  transition: all 0.12s;
+}
+.selection-action:hover {
+  opacity: 0.75;
+}
+.selection-action-danger {
+  background: var(--danger-bg);
+  color: var(--danger);
+  border-color: transparent;
+}
+
 .dark .sidebar-item {
   color: #ffffff;
 }
