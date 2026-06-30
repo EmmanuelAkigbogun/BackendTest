@@ -439,7 +439,11 @@ export default function AuthPage({ theme, toggleTheme }) {
         <div>
           {/* Wordmark */}
           <div className="auth-wordmark" style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 56 }}>
-            <div style={{ width: 8, height: 8, borderRadius: '50%', background: 'var(--text-primary)' }}/>
+            <div style={{ width: 32, height: 32, borderRadius: 8, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'var(--bg-icon)' }}>
+              <svg width="20" height="20" viewBox="0 0 16 16" fill="none">
+                <path d="M2 4a1 1 0 011-1h3.586a1 1 0 01.707.293L8 4h5a1 1 0 011 1v7a1 1 0 01-1 1H3a1 1 0 01-1-1V4z" fill="white" />
+              </svg>
+            </div>
             <span style={{ fontSize: 13, fontWeight: 500, letterSpacing: '0.06em', color: 'var(--text-primary)' }}>Folder</span>
           </div>
 

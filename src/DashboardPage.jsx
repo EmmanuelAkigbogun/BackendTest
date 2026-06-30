@@ -480,12 +480,12 @@ export default function DashboardPage({ session, onSignOut, theme, toggleTheme }
                 </svg>
               </button>
               <div style={{
-                width: 26, height: 26, borderRadius: 7,
-                background: 'var(--bg-icon)',
+                width: 32, height: 32, borderRadius: 8,
                 display: 'flex', alignItems: 'center', justifyContent: 'center',
+                background: 'var(--bg-icon)',
               }}>
-                <svg width="12" height="12" viewBox="0 0 14 14" fill="none">
-                  <path d="M2 7h10M7 2v10" stroke="white" strokeWidth="1.8" strokeLinecap="round" />
+                <svg width="20" height="20" viewBox="0 0 16 16" fill="none">
+                  <path d="M2 4a1 1 0 011-1h3.586a1 1 0 01.707.293L8 4h5a1 1 0 011 1v7a1 1 0 01-1 1H3a1 1 0 01-1-1V4z" fill="white" />
                 </svg>
               </div>
               <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-primary)', lineHeight: 1 }}>Folder</div>
