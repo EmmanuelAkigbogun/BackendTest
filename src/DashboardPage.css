@@ -3,8 +3,7 @@
   from { transform: scaleY(0.4); }
   to   { transform: scaleY(1); }
 }
-::-webkit-scrollbar { width: 4px; }
-::-webkit-scrollbar-thumb { background: rgba(0,0,0,0.08); border-radius: 4px; }
+
 
 * { box-sizing: border-box; }
 
