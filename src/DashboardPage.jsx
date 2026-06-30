@@ -11,7 +11,8 @@ import './DashboardPage.css';
 
 export default function DashboardPage({ session, onSignOut, theme, toggleTheme }) {
   const [message, setMessage] = useState('');
-  const [selectedFile, setSelectedFile] = useState(null);
+  const [selectedFiles, setSelectedFiles] = useState([]);
+  const MAX_FILE_SIZE = 50 * 1024 * 1024;
   const [history, setHistory] = useState([]);
   const [folders, setFolders] = useState([]);
   const [activeFolder, setActiveFolder] = useState(null);
@@ -30,6 +31,7 @@ export default function DashboardPage({ session, onSignOut, theme, toggleTheme }
   const [selectMode, setSelectMode] = useState(false);
   const [selectedItems, setSelectedItems] = useState(new Set());
   const [scrollToId, setScrollToId] = useState(null);
+  const [uploadCount, setUploadCount] = useState(0);
   const fetchedRef = useRef({});
 
   const fetchHistory = async () => {
@@ -113,10 +115,10 @@ export default function DashboardPage({ session, onSignOut, theme, toggleTheme }
   }, [activeFolder, folders]);
 
   useEffect(() => {
-    if (selectedFile && editFileAction === 'file') {
+    if (selectedFiles.length && editFileAction === 'file') {
       window.scrollTo({ top: 0, behavior: 'smooth' });
     }
-  }, [selectedFile, editFileAction]);
+  }, [selectedFiles.length, editFileAction]);
 
   useEffect(() => {
     if (!scrollToId) return;
@@ -142,7 +144,7 @@ export default function DashboardPage({ session, onSignOut, theme, toggleTheme }
 
   const handleSend = async (e) => {
     e.preventDefault();
-    if (!editingItem && !message.trim() && !selectedFile && !linkMode) return;
+    if (!editingItem && !message.trim() && !selectedFiles.length && !linkMode) return;
     if (!editingItem && linkMode && !message.trim()) return;
     setLoading(true);
     try {
@@ -169,45 +171,60 @@ export default function DashboardPage({ session, onSignOut, theme, toggleTheme }
             .update({ content: publicUrl, edited_at: new Date().toISOString() })
             .eq('id', editingItem.id);
           if (error) throw error;
-        } else if (editFileAction === 'file' && selectedFile) {
-          const fileExt = selectedFile.name.split('.').pop();
+        } else if (editFileAction === 'file' && selectedFiles.length) {
+          const file = selectedFiles[0];
+          const fileExt = file.name.split('.').pop();
           const filePath = `${userId}/${crypto.randomUUID()}.${fileExt}`;
-          const { error: ue } = await supabase.storage.from('uploads').upload(filePath, selectedFile);
+          const { error: ue } = await supabase.storage.from('uploads').upload(filePath, file);
           if (ue) throw ue;
           const oldPath = editingItem.content.split('/storage/v1/object/public/uploads/')[1];
           if (oldPath) await supabase.storage.from('uploads').remove([oldPath]).catch(() => {});
           const { data: { publicUrl } } = supabase.storage.from('uploads').getPublicUrl(filePath);
           const { error } = await supabase
             .from('history')
-            .update({ content: publicUrl, type: 'file', file_name: selectedFile.name, edited_at: new Date().toISOString() })
+            .update({ content: publicUrl, type: 'file', file_name: file.name, edited_at: new Date().toISOString() })
             .eq('id', editingItem.id);
           if (error) throw error;
         }
         const editedId = editingItem.id;
         setScrollToId(editedId);
-        setEditingItem(null); setEditFileAction(null); setMessage(''); setSelectedFile(null);
+        setEditingItem(null); setEditFileAction(null); setMessage(''); setSelectedFiles([]);
         document.getElementById('fileInput').value = '';
         fetchHistory();
         return;
       }
 
-      let payload;
       if (linkMode) {
-        payload = { user_id: userId, type: 'link', content: message, file_name: null, folder_id: activeFolder };
-      } else {
-        payload = { user_id: userId, type: 'text', content: message, file_name: null, folder_id: activeFolder };
-        if (selectedFile) {
-          const fileExt = selectedFile.name.split('.').pop();
+        const { error: de } = await supabase.from('history').insert([{ user_id: userId, type: 'link', content: message, file_name: null, folder_id: activeFolder }]);
+        if (de) throw de;
+      } else if (message.trim() && !selectedFiles.length) {
+        const { error: de } = await supabase.from('history').insert([{ user_id: userId, type: 'text', content: message, file_name: null, folder_id: activeFolder }]);
+        if (de) throw de;
+      }
+      if (selectedFiles.length) {
+        const valid = selectedFiles.filter(f => f.size <= MAX_FILE_SIZE);
+        const skipped = selectedFiles.length - valid.length;
+        if (skipped) setToast(`${skipped} file${skipped > 1 ? 's' : ''} skipped (exceed 50MB limit)`);
+        setUploadCount(0);
+        const uploads = valid.map(async (file) => {
+          const fileExt = file.name.split('.').pop();
           const filePath = `${userId}/${crypto.randomUUID()}.${fileExt}`;
-          const { error: ue } = await supabase.storage.from('uploads').upload(filePath, selectedFile);
+          const { error: ue } = await supabase.storage.from('uploads').upload(filePath, file);
           if (ue) throw ue;
           const { data: { publicUrl } } = supabase.storage.from('uploads').getPublicUrl(filePath);
-          payload = { ...payload, type: 'file', content: publicUrl, file_name: selectedFile.name };
+          setUploadCount(prev => prev + 1);
+          return { user_id: userId, type: 'file', content: publicUrl, file_name: file.name, folder_id: activeFolder };
+        });
+        const results = await Promise.allSettled(uploads);
+        const records = results.filter(r => r.status === 'fulfilled').map(r => r.value);
+        if (records.length) {
+          const { error: ie } = await supabase.from('history').insert(records);
+          if (ie) throw ie;
         }
+        const failed = results.filter(r => r.status === 'rejected').length;
+        if (failed) setToast(`${failed} upload${failed > 1 ? 's' : ''} failed`);
       }
-      const { error: de } = await supabase.from('history').insert([payload]);
-      if (de) throw de;
-      setMessage(''); setSelectedFile(null); setLinkMode(false);
+      setMessage(''); setSelectedFiles([]); setLinkMode(false);
       document.getElementById('fileInput').value = '';
       fetchHistory();
     } catch (err) { alert(err.message); }
@@ -280,7 +297,7 @@ export default function DashboardPage({ session, onSignOut, theme, toggleTheme }
     setEditingItem(null);
     setEditFileAction(null);
     setMessage('');
-    setSelectedFile(null);
+    setSelectedFiles([]);
     document.getElementById('fileInput').value = '';
   };
 
@@ -346,27 +363,43 @@ export default function DashboardPage({ session, onSignOut, theme, toggleTheme }
     });
   };
 
+  const downloadFile = async (item) => {
+    if (item.type === 'text') {
+      const blob = new Blob([item.content], { type: 'text/plain' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url; a.download = 'entry.txt';
+      document.body.appendChild(a); a.click();
+      document.body.removeChild(a);
+      setTimeout(() => URL.revokeObjectURL(url), 1000);
+    } else {
+      const res = await fetch(item.content);
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url; a.download = item.file_name || 'download';
+      document.body.appendChild(a); a.click();
+      document.body.removeChild(a);
+      setTimeout(() => URL.revokeObjectURL(url), 1000);
+    }
+  };
+
   const handleDownload = async (item) => {
+    try { await downloadFile(item); } catch (err) { alert(err.message); }
+  };
+
+  const handleDownloadSelected = async () => {
     try {
-      if (item.type === 'text') {
-        const blob = new Blob([item.content], { type: 'text/plain' });
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url; a.download = 'entry.txt';
-        document.body.appendChild(a); a.click();
-        document.body.removeChild(a);
-        setTimeout(() => URL.revokeObjectURL(url), 1000);
-      } else {
-        const res = await fetch(item.content);
-        const blob = await res.blob();
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url; a.download = item.file_name || 'download';
-        document.body.appendChild(a); a.click();
-        document.body.removeChild(a);
-        setTimeout(() => URL.revokeObjectURL(url), 1000);
+      const items = history.filter(i => selectedItems.has(i.id));
+      setLoading(true);
+      for (let i = 0; i < items.length; i++) {
+        await downloadFile(items[i]);
+        await new Promise(r => setTimeout(r, 300));
       }
+      setSelectedItems(new Set());
+      setSelectMode(false);
     } catch (err) { alert(err.message); }
+    finally { setLoading(false); }
   };
 
   const copyToClipboard = async (text) => {
@@ -544,13 +577,13 @@ export default function DashboardPage({ session, onSignOut, theme, toggleTheme }
                         <path d="M8 2v9M5 5l3-3 3 3" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" />
                         <path d="M2 11v2a1 1 0 001 1h10a1 1 0 001-1v-2" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" />
                       </svg>
-                      {editingItem ? (selectedFile ? selectedFile.name : 'Replace file…') : (selectedFile ? selectedFile.name : 'Attach a file')}
+                      {editingItem ? (selectedFiles.length ? selectedFiles[0].name : 'Replace file…') : (selectedFiles.length > 1 ? `${selectedFiles.length} files selected` : selectedFiles.length ? selectedFiles[0].name : 'Attach a file')}
                     </label>
                   )}
                 {!editingItem && (
                   <button
                     type="button"
-                    onClick={() => { setLinkMode(!linkMode); setSelectedFile(null); }}
+                    onClick={() => { setLinkMode(!linkMode); setSelectedFiles([]); }}
                     className="card-action"
                     style={{
                       background: linkMode ? 'var(--link-mode-bg)' : 'var(--card-action-bg)',
@@ -566,7 +599,7 @@ export default function DashboardPage({ session, onSignOut, theme, toggleTheme }
                   </button>
                 )}
                 </div>
-                <input id="fileInput" type="file" style={{ display: 'none' }} onChange={e => setSelectedFile(e.target.files[0])} />
+                <input id="fileInput" type="file" multiple style={{ display: 'none' }} onChange={e => setSelectedFiles([...e.target.files])} />
                 <div style={{ display: 'flex', gap: 8 }}>
                   {editingItem && (
                     <button type="button" onClick={handleCancelEdit} className="send-btn" style={{ background: 'none', color: 'var(--text-muted)', border: '1px solid var(--border-input)' }}>
@@ -574,7 +607,7 @@ export default function DashboardPage({ session, onSignOut, theme, toggleTheme }
                     </button>
                   )}
                   <button type="submit" disabled={loading} className="send-btn">
-                    {loading ? 'Saving…' : editingItem ? 'Update entry' : (linkMode ? 'Add link' : 'Send entry')}
+                    {loading ? (() => { const t = selectedFiles.filter(f => f.size <= MAX_FILE_SIZE).length; return t > 1 ? `Uploading ${uploadCount}/${t} (${Math.round(uploadCount/t*100)}%)…` : 'Saving…'; })() : editingItem ? 'Update entry' : (linkMode ? 'Add link' : 'Send entry')}
                   </button>
                 </div>
               </div>
@@ -591,6 +624,30 @@ export default function DashboardPage({ session, onSignOut, theme, toggleTheme }
                 {history.length > 0 && `${history.length} file${history.length > 1 ? 's' : ''}`}
                 {currentSubfolders.length === 0 && history.length === 0 && 'empty'}
               </span>
+              {history.length > 0 && (
+                <button
+                  onClick={async () => {
+                    setLoading(true);
+                    for (const item of history) {
+                      try { await downloadFile(item); await new Promise(r => setTimeout(r, 300)); } catch {}
+                    }
+                    setLoading(false);
+                  }}
+                  className="card-action"
+                  style={{
+                    background: 'var(--card-action-bg)',
+                    color: 'var(--text-muted)',
+                    display: 'flex', alignItems: 'center', gap: 4,
+                  }}
+                  title="Download all"
+                >
+                  <svg width="12" height="12" viewBox="0 0 16 16" fill="none">
+                    <path d="M8 2v8M4 6l4 4 4-4" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round"/>
+                    <path d="M2 12v1.5A1.5 1.5 0 003.5 15h9a1.5 1.5 0 001.5-1.5V12" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round"/>
+                  </svg>
+                  All
+                </button>
+              )}
               <button
                 onClick={handleToggleSelectMode}
                 className="card-action"
@@ -630,6 +687,7 @@ export default function DashboardPage({ session, onSignOut, theme, toggleTheme }
                 <span className="selection-count">{selectedItems.size} selected</span>
                 <div style={{ flex: 1 }} />
                 <button onClick={() => setSelectedItems(new Set())} className="selection-action">Clear</button>
+                <button onClick={handleDownloadSelected} className="selection-action">Download</button>
                 <button onClick={handleDeleteSelected} className="selection-action selection-action-danger">Delete</button>
               </div>
             )}
