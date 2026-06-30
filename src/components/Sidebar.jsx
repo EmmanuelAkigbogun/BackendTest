@@ -138,6 +138,18 @@ export default function Sidebar({ tree, activeFolder, onSelect, onNewFolder, onD
           <button className="sidebar-close" onClick={onClose}>✕</button>
         </div>
 
+        <div className="sidebar-new-folder">
+          <input
+            ref={inputRef}
+            value={name}
+            onChange={e => setName(e.target.value)}
+            onKeyDown={e => { if (e.key === 'Enter') submit(); }}
+            placeholder="New folder name…"
+            className="sidebar-input"
+          />
+          <button onClick={submit} className="sidebar-add-btn" disabled={!name.trim()}>ADD</button>
+        </div>
+
         <div className="sidebar-scroll">
           <div
             onClick={() => { onSelect(null); onClose(); }}
@@ -164,18 +176,6 @@ export default function Sidebar({ tree, activeFolder, onSelect, onNewFolder, onD
               onClose={onClose}
             />
           ))}
-        </div>
-
-        <div className="sidebar-new-folder">
-          <input
-            ref={inputRef}
-            value={name}
-            onChange={e => setName(e.target.value)}
-            onKeyDown={e => { if (e.key === 'Enter') submit(); }}
-            placeholder="New folder name…"
-            className="sidebar-input"
-          />
-          <button onClick={submit} className="sidebar-add-btn" disabled={!name.trim()}>ADD</button>
         </div>
       </div>
     </>

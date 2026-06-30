@@ -139,7 +139,7 @@
   flex-direction: column;
   gap: 6px;
   padding: 10px 12px 14px;
-  border-top: 1px solid var(--border-subtle);
+  border-bottom: 1px solid var(--border-subtle);
 }
 .sidebar-input {
   width: 100%;
