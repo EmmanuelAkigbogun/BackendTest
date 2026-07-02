@@ -6,6 +6,8 @@ import Sidebar, { buildTree } from './components/Sidebar';
 import PreviewModal from './components/PreviewModal';
 import ConfirmDialog from './components/ConfirmDialog';
 import EditPopup from './components/EditPopup';
+import ShareDialog from './components/ShareDialog';
+import GroupManager from './components/GroupManager';
 import { DashboardDoodles } from './Doodles';
 import './DashboardPage.css';
 
@@ -30,13 +32,36 @@ export default function DashboardPage({ session, onSignOut, theme, toggleTheme }
   const [showEditPopup, setShowEditPopup] = useState(null);
   const [selectMode, setSelectMode] = useState(false);
   const [selectedItems, setSelectedItems] = useState(new Set());
-  
+  const [canPaste, setCanPaste] = useState(false);
+  const [pasteBlocked, setPasteBlocked] = useState(0);
+  const movableRef = useRef(new Set());
+
   const [uploadCount, setUploadCount] = useState(0);
   const fetchedRef = useRef({});
+  const debounceRef = useRef(null);
+  const [shareFolder, setShareFolder] = useState(null);
+  const [showGroups, setShowGroups] = useState(false);
+  const [sharedFolders, setSharedFolders] = useState([]);
+  const [groupPendingCount, setGroupPendingCount] = useState(0);
+  const [sharedFoldersMeta, setSharedFoldersMeta] = useState({});
+  const [shareNotifCount, setShareNotifCount] = useState(0);
+  const [userMap, setUserMap] = useState({});
+  const [roleMap, setRoleMap] = useState({});
 
-  const fetchHistory = async () => {
+  const fetchUserMap = useCallback(async (userIds) => {
+    if (!userIds.length) return;
+    const { data: profiles } = await supabase
+      .from('profiles')
+      .select('id, email')
+      .in('id', userIds);
+    if (profiles) {
+      setUserMap(prev => ({ ...prev, ...Object.fromEntries(profiles.map(p => [p.id, p.email])) }));
+    }
+  }, []);
+
+  const fetchHistory = useCallback(async () => {
     try {
-      let q = supabase.from('history').select('id, type, content, file_name, created_at, folder_id, edited_at').order('created_at', { ascending: false }).order('id', { ascending: false });
+      let q = supabase.from('history').select('id, type, content, file_name, created_at, folder_id, edited_at, edited_by, user_id').order('created_at', { ascending: false }).order('id', { ascending: false });
       if (activeFolder) {
         q = q.eq('folder_id', activeFolder);
       } else {
@@ -44,9 +69,52 @@ export default function DashboardPage({ session, onSignOut, theme, toggleTheme }
       }
       const { data, error } = await q;
       if (error) throw error;
-      setHistory(data || []);
+      let items = data || [];
+      const { data: hidden } = await supabase
+        .from('hidden_history')
+        .select('history_id')
+        .eq('user_id', session.user.id);
+      if (hidden && hidden.length) {
+        const hiddenIds = new Set(hidden.map(h => h.history_id));
+        items = items.filter(i => !hiddenIds.has(i.id));
+      }
+      const { data: personalEdits } = await supabase
+        .from('personal_edits')
+        .select('*')
+        .eq('user_id', session.user.id);
+      if (personalEdits) {
+        const editMap = {};
+        personalEdits.forEach(pe => { editMap[pe.history_id] = pe; });
+        items = items.map(item => {
+          const pe = editMap[item.id];
+          if (pe) return { ...item, content: pe.content, file_name: pe.file_name || item.file_name, edited_at: pe.created_at, edited_by: session.user.id, is_personal_edit: true };
+          return item;
+        });
+      }
+      setHistory(items);
+      const userIds = [...new Set(items.map(d => d.user_id).filter(Boolean))];
+      fetchUserMap(userIds);
     } catch (err) { alert(err.message); }
-  };
+  }, [activeFolder, session, fetchUserMap]);
+
+  const getSharedInfoForFolder = useCallback(async (folderId) => {
+    let currentId = folderId;
+    while (currentId) {
+      const { data: sfs } = await supabase
+        .from('shared_folders')
+        .select('shared_by, shared_with_group')
+        .eq('folder_id', currentId);
+      if (sfs && sfs.length > 0) return sfs;
+      const { data: parent } = await supabase
+        .from('folders')
+        .select('parent_id')
+        .eq('id', currentId)
+        .maybeSingle();
+      if (!parent || !parent.parent_id) break;
+      currentId = parent.parent_id;
+    }
+    return null;
+  }, []);
 
   const fetchFolders = useCallback(async () => {
     try {
@@ -102,17 +170,175 @@ export default function DashboardPage({ session, onSignOut, theme, toggleTheme }
     } catch { /* ignore count errors */ }
   }, []);
 
+  const fetchSharedFolders = useCallback(async () => {
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) return;
+      const { data: sfs } = await supabase
+        .from('shared_folders')
+        .select('folder_id, share_type, shared_by, shared_with_user, shared_with_group');
+      if (!sfs || !sfs.length) { setSharedFolders([]); setSharedFoldersMeta({}); return; }
+      const folderIds = [...new Set(sfs.map(s => s.folder_id))];
+      const { data: folders } = await supabase
+        .from('folders')
+        .select('id, name, user_id')
+        .in('id', folderIds);
+      const filtered = (folders || []).filter(f => f.user_id !== session.user.id);
+      setSharedFolders(filtered);
+      const folderShares = {};
+      const userIds = new Set();
+      const groupIds = new Set();
+      sfs.forEach(s => {
+        if (!folderShares[s.folder_id]) folderShares[s.folder_id] = [];
+        folderShares[s.folder_id].push({
+          share_type: s.share_type,
+          shared_by: s.shared_by,
+          shared_with_user: s.shared_with_user,
+          shared_with_group: s.shared_with_group,
+        });
+        if (s.shared_by) userIds.add(s.shared_by);
+        if (s.share_type === 'group' && s.shared_with_group) groupIds.add(s.shared_with_group);
+      });
+      const nameMap = {};
+      if (userIds.size) {
+        const { data: profiles } = await supabase.from('profiles').select('id, email').in('id', [...userIds]);
+        if (profiles) profiles.forEach(p => { nameMap[p.id] = p.email; });
+      }
+      if (groupIds.size) {
+        const { data: groups } = await supabase.from('groups').select('id, name').in('id', [...groupIds]);
+        if (groups) groups.forEach(g => { nameMap[g.id] = g.name; });
+      }
+      setSharedFoldersMeta({ shares: folderShares, names: nameMap });
+    } catch {}
+  }, []);
+
+  const fetchPendingCount = useCallback(async () => {
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) return;
+      const { data: adminMemberships } = await supabase
+        .from('group_members')
+        .select('group_id')
+        .eq('user_id', session.user.id)
+        .eq('role', 'admin');
+      const owned = await supabase.from('groups').select('id').eq('created_by', session.user.id);
+      const adminIds = [...new Set([...(adminMemberships || []).map(m => m.group_id), ...(owned?.data || []).map(g => g.id)])];
+      if (!adminIds.length) { setGroupPendingCount(0); return; }
+      const placeholder = '00000000-0000-0000-0000-000000000000';
+      const ids = adminIds.length ? adminIds : [placeholder];
+      const { data: joinReqs } = await supabase.from('group_join_requests').select('id').in('group_id', ids).eq('status', 'pending');
+      const { data: shareReqs } = await supabase.from('group_share_requests').select('id').in('group_id', ids).eq('status', 'pending');
+      setGroupPendingCount((joinReqs?.length || 0) + (shareReqs?.length || 0));
+    } catch { setGroupPendingCount(0); }
+  }, []);
+
+  const fetchShareNotifCount = useCallback(async () => {
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) return;
+      const userId = session.user.id;
+      const { data: profile } = await supabase.from('profiles').select('last_viewed_shares_at').eq('id', userId).maybeSingle();
+      const since = profile?.last_viewed_shares_at || new Date(0).toISOString();
+      const { data: newShares } = await supabase.from('shared_folders').select('id').gte('created_at', since);
+      const { data: approvedShareReqs } = await supabase.from('group_share_requests').select('id').eq('user_id', userId).eq('status', 'approved').gte('updated_at', since);
+      const { data: approvedJoinReqs } = await supabase.from('group_join_requests').select('id').eq('user_id', userId).eq('status', 'approved').gte('updated_at', since);
+      setShareNotifCount((newShares?.length || 0) + (approvedShareReqs?.length || 0) + (approvedJoinReqs?.length || 0));
+    } catch { setShareNotifCount(0); }
+  }, []);
+
+  const markShareNotifsRead = useCallback(async () => {
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) return;
+      await supabase.from('profiles').update({ last_viewed_shares_at: new Date().toISOString() }).eq('id', session.user.id);
+      setShareNotifCount(0);
+    } catch {}
+  }, []);
+
   const navigateToFolder = useCallback((id) => {
     setActiveFolder(id);
     if (id) setExpandedSet(prev => new Set([...prev, id]));
   }, []);
 
-  useEffect(() => { fetchFolders(); }, [fetchFolders, session]);
+  useEffect(() => { fetchFolders(); fetchSharedFolders(); fetchPendingCount(); fetchShareNotifCount(); }, [fetchFolders, fetchSharedFolders, fetchPendingCount, fetchShareNotifCount, session]);
   useEffect(() => { fetchHistory(); }, [activeFolder]);
   useEffect(() => {
     const ids = folders.filter(f => activeFolder ? f.parent_id === activeFolder : !f.parent_id).map(f => f.id);
     fetchFolderCounts(ids);
   }, [activeFolder, folders]);
+
+  useEffect(() => {
+    if (!history.length && !activeFolder) { setRoleMap({}); return; }
+    const userIds = [...new Set(history.map(d => d.user_id).filter(Boolean))];
+    (async () => {
+      if (!activeFolder) {
+        const rm = {};
+        userIds.forEach(uid => { if (uid) rm[uid] = 'member'; });
+        setRoleMap(rm);
+        return;
+      }
+      const sfs = await getSharedInfoForFolder(activeFolder);
+      if (!sfs) {
+        const rm = {};
+        userIds.forEach(uid => { if (uid) rm[uid] = 'member'; });
+        setRoleMap(rm);
+        return;
+      }
+      const hasGroupShares = sfs.some(s => s.shared_with_group);
+      if (hasGroupShares) {
+        const groupIds = [...new Set(sfs.map(s => s.shared_with_group).filter(Boolean))];
+        const { data: members } = await supabase
+          .from('group_members')
+          .select('user_id, role')
+          .in('group_id', groupIds);
+        const rm = {};
+        if (members) members.forEach(m => { rm[m.user_id] = m.role; });
+        sfs.forEach(s => { if (s.shared_by && !rm[s.shared_by]) rm[s.shared_by] = 'admin'; });
+        userIds.forEach(uid => { if (uid && !rm[uid]) rm[uid] = 'member'; });
+        setRoleMap(rm);
+        if (members) fetchUserMap(members.map(m => m.user_id));
+      } else {
+        const { data: folder } = await supabase
+          .from('folders')
+          .select('user_id')
+          .eq('id', activeFolder)
+          .maybeSingle();
+        const rm = {};
+        const sharerId = sfs[0]?.shared_by || folder?.user_id;
+        if (sharerId) rm[sharerId] = 'admin';
+        userIds.forEach(uid => { if (uid && !rm[uid]) rm[uid] = 'member'; });
+        setRoleMap(rm);
+      }
+    })();
+  }, [activeFolder, history]);
+
+  useEffect(() => {
+    const channel = supabase.channel('db-changes')
+      .on('postgres_changes',
+        { event: '*', schema: 'public', table: 'history' },
+        () => {
+          if (debounceRef.current) clearTimeout(debounceRef.current);
+          debounceRef.current = setTimeout(fetchHistory, 300);
+        }
+      )
+      .on('postgres_changes',
+        { event: '*', schema: 'public', table: 'folders' },
+        () => { fetchFolders(); }
+      )
+      .on('postgres_changes',
+        { event: '*', schema: 'public', table: 'shared_folders' },
+        () => { fetchSharedFolders(); fetchFolders(); fetchShareNotifCount(); }
+      )
+      .on('postgres_changes',
+        { event: '*', schema: 'public', table: 'personal_edits' },
+        () => { fetchHistory(); }
+      )
+      .subscribe();
+    return () => {
+      supabase.removeChannel(channel);
+      if (debounceRef.current) clearTimeout(debounceRef.current);
+    };
+  }, [activeFolder]);
 
   useEffect(() => {
     if (selectedFiles.length && editFileAction === 'file') {
@@ -121,15 +347,20 @@ export default function DashboardPage({ session, onSignOut, theme, toggleTheme }
   }, [selectedFiles.length, editFileAction]);
 
   useEffect(() => {
-    history.filter(i => i.type !== 'text' && getFileType(i.file_name) === 'text').forEach(async item => {
-      if (fetchedRef.current[item.id]) return;
-      fetchedRef.current[item.id] = true;
+    const textItems = history.filter(i => i.type !== 'text' && getFileType(i.file_name) === 'text' && !fetchedRef.current[i.id]);
+    if (!textItems.length) return;
+    textItems.forEach(item => { fetchedRef.current[item.id] = true; });
+    Promise.allSettled(textItems.map(async item => {
       try {
         const text = await (await fetch(item.content)).text();
-        setTextContents(p => ({ ...p, [item.id]: text }));
+        return { id: item.id, text };
       } catch {
-        setTextContents(p => ({ ...p, [item.id]: '(Failed to load)' }));
+        return { id: item.id, text: '(Failed to load)' };
       }
+    })).then(results => {
+      const updates = {};
+      results.forEach(r => { if (r.status === 'fulfilled') updates[r.value.id] = r.value.text; });
+      setTextContents(p => ({ ...p, ...updates }));
     });
   }, [history]);
 
@@ -142,37 +373,69 @@ export default function DashboardPage({ session, onSignOut, theme, toggleTheme }
       const userId = session.user.id;
 
       if (editingItem) {
+        let canEditGlobally = editingItem.user_id === userId;
+        if (!canEditGlobally && editingItem.folder_id) {
+          try {
+            const { data: canEdit } = await supabase.rpc('can_edit_in_folder', { fid: editingItem.folder_id });
+            canEditGlobally = !!canEdit;
+          } catch {
+            const { data: sf } = await supabase.from('shared_folders').select('id').eq('folder_id', editingItem.folder_id).eq('shared_by', userId).maybeSingle();
+            canEditGlobally = !!sf;
+          }
+        }
         let updateFields;
         if ((editingItem.type === 'text' || editingItem.type === 'link') && editFileAction !== 'file') {
-          updateFields = { content: message, edited_at: new Date().toISOString() };
-          const { error } = await supabase.from('history').update(updateFields).eq('id', editingItem.id);
-          if (error) throw error;
+          updateFields = { content: message, edited_at: new Date().toISOString(), edited_by: userId };
+          if (canEditGlobally) {
+            const { data: upd, error } = await supabase.from('history').update(updateFields).eq('id', editingItem.id).select();
+            if (error) throw error;
+            if (!upd || upd.length === 0) throw new Error('Update failed - no permission to edit this item');
+          } else {
+            const { error } = await supabase.from('personal_edits').upsert({ history_id: editingItem.id, user_id: userId, content: message }, { onConflict: 'history_id, user_id' });
+            if (error) throw error;
+          }
         } else if (editFileAction === 'text') {
           const fileExt = editingItem.file_name.split('.').pop();
           const filePath = `${userId}/${crypto.randomUUID()}.${fileExt}`;
           const blob = new Blob([message], { type: 'text/plain' });
           const { error: ue } = await supabase.storage.from('uploads').upload(filePath, blob);
           if (ue) throw ue;
-          const oldPath = editingItem.content.split('/storage/v1/object/public/uploads/')[1];
-          if (oldPath) await supabase.storage.from('uploads').remove([oldPath]).catch(() => {});
           const { data: { publicUrl } } = supabase.storage.from('uploads').getPublicUrl(filePath);
-          updateFields = { content: publicUrl, edited_at: new Date().toISOString() };
-          const { error } = await supabase.from('history').update(updateFields).eq('id', editingItem.id);
-          if (error) throw error;
+          if (canEditGlobally) {
+            const oldPath = editingItem.content.split('/storage/v1/object/public/uploads/')[1];
+            if (oldPath) await supabase.storage.from('uploads').remove([oldPath]).catch(() => {});
+            updateFields = { content: publicUrl, edited_at: new Date().toISOString(), edited_by: userId };
+            const { data: upd, error: e2 } = await supabase.from('history').update(updateFields).eq('id', editingItem.id).select();
+            if (e2) throw e2;
+            if (!upd || upd.length === 0) throw new Error('Update failed - no permission to edit this item');
+          } else {
+            const { error } = await supabase.from('personal_edits').upsert({ history_id: editingItem.id, user_id: userId, content: publicUrl, file_name: editingItem.file_name }, { onConflict: 'history_id, user_id' });
+            if (error) throw error;
+            updateFields = { content: publicUrl };
+          }
         } else if (editFileAction === 'file' && selectedFiles.length) {
           const file = selectedFiles[0];
           const fileExt = file.name.split('.').pop();
           const filePath = `${userId}/${crypto.randomUUID()}.${fileExt}`;
           const { error: ue } = await supabase.storage.from('uploads').upload(filePath, file);
           if (ue) throw ue;
-          const oldPath = editingItem.content.split('/storage/v1/object/public/uploads/')[1];
-          if (oldPath) await supabase.storage.from('uploads').remove([oldPath]).catch(() => {});
           const { data: { publicUrl } } = supabase.storage.from('uploads').getPublicUrl(filePath);
-          updateFields = { content: publicUrl, type: 'file', file_name: file.name, edited_at: new Date().toISOString() };
-          const { error } = await supabase.from('history').update(updateFields).eq('id', editingItem.id);
-          if (error) throw error;
+          if (canEditGlobally) {
+            const oldPath = editingItem.content.split('/storage/v1/object/public/uploads/')[1];
+            if (oldPath) await supabase.storage.from('uploads').remove([oldPath]).catch(() => {});
+            updateFields = { content: publicUrl, type: 'file', file_name: file.name, edited_at: new Date().toISOString(), edited_by: userId };
+            const { data: upd, error: e3 } = await supabase.from('history').update(updateFields).eq('id', editingItem.id).select();
+            if (e3) throw e3;
+            if (!upd || upd.length === 0) throw new Error('Update failed - no permission to edit this item');
+          } else {
+            const { error } = await supabase.from('personal_edits').upsert({ history_id: editingItem.id, user_id: userId, content: publicUrl, file_name: file.name }, { onConflict: 'history_id, user_id' });
+            if (error) throw error;
+            updateFields = { content: publicUrl, file_name: file.name };
+          }
         }
-        setHistory(prev => prev.map(item => item.id === editingItem.id ? { ...item, ...updateFields } : item));
+        if (updateFields) {
+          setHistory(prev => prev.map(item => item.id === editingItem.id ? { ...item, ...updateFields } : item));
+        }
         setEditingItem(null); setEditFileAction(null); setMessage(''); setSelectedFiles([]);
         document.getElementById('fileInput').value = '';
         return;
@@ -215,18 +478,42 @@ export default function DashboardPage({ session, onSignOut, theme, toggleTheme }
     finally { setLoading(false); }
   };
 
-  const handleDelete = (item) => {
+  const handleDelete = async (item) => {
+    const isOwner = item.user_id === session.user.id;
+    let canDelete = isOwner;
+    if (!canDelete && item.folder_id) {
+      try {
+        const { data: canEdit } = await supabase
+          .rpc('can_edit_in_folder', { fid: item.folder_id });
+        canDelete = !!canEdit;
+      } catch {
+        const { data: sf } = await supabase
+          .from('shared_folders')
+          .select('id')
+          .eq('folder_id', item.folder_id)
+          .eq('shared_by', session.user.id)
+          .maybeSingle();
+        canDelete = !!sf;
+      }
+    }
     setConfirmState({
-      message: 'Delete this entry?',
+      message: canDelete ? 'Delete this entry?' : 'Hide this entry from your view?',
       onConfirm: async () => {
         setConfirmState(null);
         try {
-          if (item.type !== 'text' && item.content) {
-            const p = item.content.split('/storage/v1/object/public/uploads/')[1];
-            if (p) await supabase.storage.from('uploads').remove([p]);
+          if (canDelete) {
+            if (item.type !== 'text' && item.content) {
+              const p = item.content.split('/storage/v1/object/public/uploads/')[1];
+              if (p) await supabase.storage.from('uploads').remove([p]);
+            }
+            const { error } = await supabase.from('history').delete().eq('id', item.id);
+            if (error) throw error;
+          } else {
+            const { error } = await supabase.from('hidden_history').insert([{
+              history_id: item.id, user_id: session.user.id
+            }]);
+            if (error) throw error;
           }
-          const { error } = await supabase.from('history').delete().eq('id', item.id);
-          if (error) throw error;
           fetchHistory();
         } catch (err) { alert(err.message); }
       },
@@ -300,24 +587,65 @@ export default function DashboardPage({ session, onSignOut, theme, toggleTheme }
     });
   };
 
-  const handleDeleteSelected = () => {
+  const handleDeleteSelected = async () => {
+    const { data: items } = await supabase
+      .from('history')
+      .select('id, type, content, user_id, folder_id')
+      .in('id', [...selectedItems]);
+    const ownItems = (items || []).filter(i => i.user_id === session.user.id);
+    const otherItems = (items || []).filter(i => i.user_id !== session.user.id);
+    let canDeleteOtherIds = [];
+    if (otherItems.length) {
+      const folderIds = [...new Set(otherItems.map(i => i.folder_id).filter(Boolean))];
+      const canDeleteFolderIds = new Set();
+      if (folderIds.length) {
+        try {
+          const { data: editable } = await supabase.rpc('can_edit_in_folders', { fids: folderIds });
+          if (editable) editable.forEach(e => canDeleteFolderIds.add(e.folder_id));
+        } catch {
+          for (const fid of folderIds) {
+            try {
+              const { data: canEdit } = await supabase.rpc('can_edit_in_folder', { fid });
+              if (canEdit) canDeleteFolderIds.add(fid);
+            } catch {
+              const { data: sf } = await supabase
+                .from('shared_folders')
+                .select('folder_id')
+                .eq('folder_id', fid)
+                .eq('shared_by', session.user.id)
+                .maybeSingle();
+              if (sf) canDeleteFolderIds.add(fid);
+            }
+          }
+        }
+      }
+      canDeleteOtherIds = otherItems.filter(i => canDeleteFolderIds.has(i.folder_id)).map(i => i.id);
+    }
+    const toDelete = [...ownItems.map(i => i.id), ...canDeleteOtherIds];
+    const toHide = otherItems.filter(i => !canDeleteOtherIds.includes(i.id)).map(i => i.id);
+    const willHide = toHide.length > 0;
+    const count = selectedItems.size;
     setConfirmState({
-      message: `Delete ${selectedItems.size} selected ${selectedItems.size === 1 ? 'item' : 'items'}?`,
+      message: willHide ? `Delete ${count} selected ${count === 1 ? 'item' : 'items'}? (some will be hidden from your view)` : `Delete ${count} selected ${count === 1 ? 'item' : 'items'}?`,
       onConfirm: async () => {
         setConfirmState(null);
         try {
-          const { data: items } = await supabase
-            .from('history')
-            .select('id, type, content')
-            .in('id', [...selectedItems]);
-          for (const item of (items || [])) {
+          for (const item of ownItems) {
             if (item.type !== 'text' && item.content) {
               const p = item.content.split('/storage/v1/object/public/uploads/')[1];
               if (p) await supabase.storage.from('uploads').remove([p]).catch(() => {});
             }
           }
-          const { error } = await supabase.from('history').delete().in('id', [...selectedItems]);
-          if (error) throw error;
+          if (toDelete.length) {
+            const { error } = await supabase.from('history').delete().in('id', toDelete);
+            if (error) throw error;
+          }
+          if (toHide.length) {
+            const { error } = await supabase.from('hidden_history').insert(
+              toHide.map(id => ({ history_id: id, user_id: session.user.id }))
+            );
+            if (error) throw error;
+          }
           setSelectedItems(new Set());
           setSelectMode(false);
           fetchHistory();
@@ -326,19 +654,55 @@ export default function DashboardPage({ session, onSignOut, theme, toggleTheme }
     });
   };
 
+  useEffect(() => {
+    if (!selectMode || selectedItems.size === 0) { setCanPaste(false); setPasteBlocked(0); movableRef.current = new Set(); return; }
+    (async () => {
+      const { data: items } = await supabase
+        .from('history')
+        .select('id, user_id, folder_id')
+        .in('id', [...selectedItems]);
+      const allFids = [...new Set((items || []).map(i => i.folder_id).filter(Boolean))];
+      if (activeFolder && !allFids.includes(activeFolder)) allFids.push(activeFolder);
+      const accessible = new Set();
+      if (allFids.length) {
+        const { data: acc } = await supabase.rpc('folders_are_accessible', { fids: allFids });
+        if (acc) acc.forEach(a => accessible.add(a.folder_id));
+      }
+      const movable = new Set();
+      let blocked = 0;
+      for (const item of items || []) {
+        if (item.user_id === session.user.id) { movable.add(item.id); continue; }
+        if (item.folder_id && accessible.has(item.folder_id) && activeFolder && accessible.has(activeFolder)) {
+          movable.add(item.id);
+        } else {
+          blocked++;
+        }
+      }
+      movableRef.current = movable;
+      setCanPaste(movable.size > 0);
+      setPasteBlocked(blocked);
+    })();
+  }, [selectMode, selectedItems, activeFolder, session.user.id]);
+
   const handleMoveSelected = (folderId, folderName) => {
     if (selectedItems.size === 0) return;
+    const toMove = folderId === activeFolder ? [...movableRef.current] : [...selectedItems];
+    if (toMove.length === 0) { alert('No items can be moved here'); return; }
+    const totalBlocked = selectedItems.size - toMove.length;
     setConfirmState({
-      message: `Move ${selectedItems.size} selected ${selectedItems.size === 1 ? 'item' : 'items'} to "${folderName}"?`,
+      message: `Move ${toMove.length} item${toMove.length === 1 ? '' : 's'} to "${folderName}"?${totalBlocked > 0 ? ` (${totalBlocked} will be skipped)` : ''}`,
       confirmLabel: 'Move',
       onConfirm: async () => {
         setConfirmState(null);
         try {
-          const { error } = await supabase
+          const { data: mv, error } = await supabase
             .from('history')
             .update({ folder_id: folderId })
-            .in('id', [...selectedItems]);
+            .in('id', toMove)
+            .select();
           if (error) throw error;
+          if (!mv || mv.length === 0) throw new Error('Move failed');
+          if (mv.length < toMove.length) alert(`Moved ${mv.length} of ${toMove.length} items`);
           setSelectedItems(new Set());
           setSelectMode(false);
           fetchHistory();
@@ -461,6 +825,12 @@ export default function DashboardPage({ session, onSignOut, theme, toggleTheme }
         expandedSet={expandedSet}
         onToggleExpand={toggleExpanded}
         userEmail={session.user.email}
+        onGroups={() => setShowGroups(true)}
+        sharedFolders={sharedFolders}
+        sharedFoldersMeta={sharedFoldersMeta}
+        groupPendingCount={groupPendingCount}
+        shareNotifCount={shareNotifCount}
+        onShareNotifsRead={markShareNotifsRead}
       />
 
       <div className="main-content" style={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0, minHeight: '100vh', position: 'relative', zIndex: 1 }}>
@@ -599,7 +969,7 @@ export default function DashboardPage({ session, onSignOut, theme, toggleTheme }
           </form>
 
           <div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 20 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 20, flexWrap: 'wrap' }}>
               <span style={{ fontSize: 10, fontWeight: 600, letterSpacing: '0.18em', color: 'var(--text-muted-lighter)', textTransform: 'uppercase' }}>{activeFolderName}</span>
               <div style={{ flex: 1, height: 1, background: 'var(--border-subtle)' }} />
               <span style={{ fontSize: 10, color: 'var(--text-muted)' }}>
@@ -632,22 +1002,7 @@ export default function DashboardPage({ session, onSignOut, theme, toggleTheme }
                   All
                 </button>
               )}
-              <button
-                onClick={handleToggleSelectMode}
-                className="card-action"
-                style={{
-                  background: selectMode ? 'var(--bg-button)' : 'var(--card-action-bg)',
-                  color: selectMode ? 'var(--text-button)' : 'var(--text-muted)',
-                  display: 'flex', alignItems: 'center', gap: 5,
-                }}
-              >
-                <svg width="12" height="12" viewBox="0 0 16 16" fill="none">
-                  <rect x="2" y="2" width="12" height="12" rx="2" stroke="currentColor" strokeWidth="1.3" fill="none" />
-                  {selectMode && <path d="M5 8l2 2 4-4" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round" />}
-                </svg>
-                Select
-              </button>
-              {selectMode && selectedItems.size > 0 && activeFolder && (
+              {selectMode && selectedItems.size > 0 && canPaste && (
                 <button
                   onClick={() => handleMoveSelected(activeFolder, activeFolderName)}
                   className="card-action"
@@ -661,9 +1016,41 @@ export default function DashboardPage({ session, onSignOut, theme, toggleTheme }
                     <path d="M3 5h10M8 2v8M5 7l3 3 3-3" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round"/>
                     <path d="M2 11v2a1 1 0 001 1h10a1 1 0 001-1v-2" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round"/>
                   </svg>
-                  Paste
+                  Paste{activeFolder ? '' : ' to All Items'}
                 </button>
               )}
+              <div className="select-btn-group">
+                <button
+                  onClick={() => {
+                    if (!selectMode) setSelectMode(true);
+                    if (selectedItems.size === history.length) setSelectedItems(new Set());
+                    else setSelectedItems(new Set(history.map(h => h.id)));
+                  }}
+                  className="card-action"
+                  style={{ display: 'flex', alignItems: 'center', gap: 5, background: selectedItems.size === history.length ? 'var(--bg-button)' : 'var(--card-action-bg)', color: selectedItems.size === history.length ? 'var(--text-button)' : 'var(--text-muted)' }}
+                >
+                  <svg width="12" height="12" viewBox="0 0 16 16" fill="none">
+                    <rect x="1" y="1" width="14" height="14" rx="2" stroke="currentColor" strokeWidth="1.3" fill="none" />
+                    {selectedItems.size === history.length && <path d="M5 8l2 2 4-4" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round" />}
+                  </svg>
+                  All
+                </button>
+                <button
+                  onClick={handleToggleSelectMode}
+                  className="card-action"
+                  style={{
+                    background: selectMode ? 'var(--bg-button)' : 'var(--card-action-bg)',
+                    color: selectMode ? 'var(--text-button)' : 'var(--text-muted)',
+                    display: 'flex', alignItems: 'center', gap: 5,
+                  }}
+                >
+                  <svg width="12" height="12" viewBox="0 0 16 16" fill="none">
+                    <rect x="2" y="2" width="12" height="12" rx="2" stroke="currentColor" strokeWidth="1.3" fill="none" />
+                    {selectMode && <path d="M5 8l2 2 4-4" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round" />}
+                  </svg>
+                  Select
+                </button>
+              </div>
             </div>
 
             {selectMode && selectedItems.size > 0 && (
@@ -693,6 +1080,7 @@ export default function DashboardPage({ session, onSignOut, theme, toggleTheme }
                     selectMode={selectMode}
                     selectedCount={selectedItems.size}
                     onMoveSelected={handleMoveSelected}
+                    onShare={setShareFolder}
                   />
                 ))}
                 {history.map(item => (
@@ -708,6 +1096,9 @@ export default function DashboardPage({ session, onSignOut, theme, toggleTheme }
                     selectMode={selectMode}
                     selected={selectedItems.has(item.id)}
                     onToggleSelect={handleToggleSelect}
+                    userEmail={userMap[item.user_id]}
+                    userRole={roleMap[item.user_id]}
+                    roleMap={roleMap}
                   />
                 ))}
               </div>
@@ -744,6 +1135,8 @@ export default function DashboardPage({ session, onSignOut, theme, toggleTheme }
           confirmLabel={confirmState.confirmLabel}
         />
       )}
+      {shareFolder && <ShareDialog folder={shareFolder} onClose={() => setShareFolder(null)} />}
+      {showGroups && <GroupManager onClose={() => { setShowGroups(false); fetchPendingCount(); }} onLeave={() => { fetchSharedFolders(); fetchHistory(); fetchPendingCount(); }} />}
     </div>
   );
 }

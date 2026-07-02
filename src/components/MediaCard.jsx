@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useLayoutEffect } from 'react';
 
 export const FILE_TYPES = {
   image: ['jpg', 'jpeg', 'png', 'gif', 'webp', 'svg', 'avif', 'bmp', 'ico', 'jfif'],
@@ -44,7 +44,7 @@ function useTilt(ref) {
   return { tilt, hovered, onEnter, onLeave, onMove };
 }
 
-export default function MediaCard({ item, onDelete, onCopy, textContents, onPreview, onDownload, onEdit, selectMode, selected, onToggleSelect }) {
+export default function MediaCard({ item, onDelete, onCopy, textContents, onPreview, onDownload, onEdit, selectMode, selected, onToggleSelect, userEmail, userRole, roleMap }) {
   const ref = useRef(null);
   const { tilt, hovered, onEnter, onLeave, onMove } = useTilt(ref);
   const videoRef = useRef(null);
@@ -56,6 +56,95 @@ export default function MediaCard({ item, onDelete, onCopy, textContents, onPrev
     if (!videoRef.current) return;
     hovered ? videoRef.current.play().catch(() => { }) : videoRef.current.pause();
   }, [hovered]);
+
+  const [linkViewMode, setLinkViewMode] = useState('desktop');
+  const linkIframeRef = useRef(null);
+  const [linkZoom, setLinkZoom] = useState(1);
+  const [imgFit, setImgFit] = useState('cover');
+  const [imgPos, setImgPos] = useState({ x: 50, y: 50 });
+  const draggingRef = useRef(null);
+  const didDragRef = useRef(false);
+  useLayoutEffect(() => {
+    if (displayType !== 'link' || !linkIframeRef.current) return;
+    const w = linkIframeRef.current.getBoundingClientRect().width;
+    setLinkZoom(w / (linkViewMode === 'desktop' ? 1400 : 400));
+  }, [linkViewMode, displayType]);
+
+  useEffect(() => {
+    setImgPos({ x: 50, y: 50 });
+  }, [imgFit]);
+
+  useEffect(() => {
+    const onDown = (e) => {
+      if (imgFit !== 'cover') return;
+      const el = e.target.closest('img, video');
+      if (!el || !ref.current || !ref.current.contains(el)) return;
+      if (!e.touches) {
+        if (e.cancelable) e.preventDefault();
+        didDragRef.current = false;
+        const clientX = e.clientX ?? e.touches?.[0]?.clientX ?? 0;
+        const clientY = e.clientY ?? e.touches?.[0]?.clientY ?? 0;
+        const rect = el.getBoundingClientRect();
+        draggingRef.current = {
+          startX: clientX, startY: clientY,
+          startPos: { ...imgPos }, rect,
+          moved: false,
+        };
+        return;
+      }
+      if (e.touches.length !== 2) return;
+      if (e.cancelable) e.preventDefault();
+      didDragRef.current = false;
+      const ax = e.touches[0].clientX, ay = e.touches[0].clientY;
+      const bx = e.touches[1].clientX, by = e.touches[1].clientY;
+      const rect = el.getBoundingClientRect();
+      draggingRef.current = {
+        startX: (ax + bx) / 2, startY: (ay + by) / 2,
+        startPos: { ...imgPos }, rect,
+        moved: false,
+      };
+    };
+    const onMove = (e) => {
+      if (!draggingRef.current) return;
+      if (e.touches && e.touches.length !== 2) { draggingRef.current = null; return; }
+      const clientX = e.clientX ?? (e.touches ? (e.touches[0].clientX + e.touches[1].clientX) / 2 : 0);
+      const clientY = e.clientY ?? (e.touches ? (e.touches[0].clientY + e.touches[1].clientY) / 2 : 0);
+      const dx = clientX - draggingRef.current.startX;
+      const dy = clientY - draggingRef.current.startY;
+      if (!draggingRef.current.moved && Math.abs(dx) + Math.abs(dy) > 3) {
+        draggingRef.current.moved = true;
+      }
+      if (!draggingRef.current.moved) return;
+      didDragRef.current = true;
+      if (e.cancelable) e.preventDefault();
+      const rect = draggingRef.current.rect;
+      const pctX = (dx / rect.width) * 100;
+      const pctY = (dy / rect.height) * 100;
+      setImgPos({
+        x: Math.max(0, Math.min(100, draggingRef.current.startPos.x - pctX)),
+        y: Math.max(0, Math.min(100, draggingRef.current.startPos.y - pctY)),
+      });
+    };
+    const onUp = () => { draggingRef.current = null; };
+
+    const opts = { capture: true, passive: false };
+    window.addEventListener('mousedown', onDown, true);
+    window.addEventListener('mousemove', onMove, true);
+    window.addEventListener('mouseup', onUp, true);
+    window.addEventListener('touchstart', onDown, opts);
+    window.addEventListener('touchmove', onMove, opts);
+    window.addEventListener('touchend', onUp, opts);
+    window.addEventListener('touchcancel', onUp, opts);
+    return () => {
+      window.removeEventListener('mousedown', onDown, true);
+      window.removeEventListener('mousemove', onMove, true);
+      window.removeEventListener('mouseup', onUp, true);
+      window.removeEventListener('touchstart', onDown, opts);
+      window.removeEventListener('touchmove', onMove, opts);
+      window.removeEventListener('touchend', onUp, opts);
+      window.removeEventListener('touchcancel', onUp, opts);
+    };
+  }, [imgFit, imgPos]);
 
   const cardStyle = {
     borderRadius: 20,
@@ -82,15 +171,26 @@ export default function MediaCard({ item, onDelete, onCopy, textContents, onPrev
   const previewH = 260;
 
   const renderPreview = () => {
+    const isAltFit = imgFit !== 'cover';
+    const imgCursor = imgFit === 'cover' ? 'grab' : 'default';
     if (displayType === 'image') return (
       <img src={item.content} alt={item.file_name} style={{
         width: '100%', height: '100%', display: 'block',
-        objectFit: 'cover',
-      }}/>
+        objectFit: isAltFit ? 'contain' : 'cover',
+        objectPosition: imgFit === 'cover' ? `${imgPos.x}% ${imgPos.y}%` : '50% 50%',
+        cursor: draggingRef.current ? 'grabbing' : imgCursor,
+        ...(isAltFit ? { transform: 'scale(1.2)', transformOrigin: 'center center' } : {}),
+      }} draggable={false} />
     );
     if (displayType === 'video') return (
       <>
-        <video ref={videoRef} src={item.content} muted loop style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+        <video ref={videoRef} src={item.content} muted loop style={{
+          width: '100%', height: '100%',
+          objectFit: isAltFit ? 'contain' : 'cover',
+          objectPosition: imgFit === 'cover' ? `${imgPos.x}% ${imgPos.y}%` : '50% 50%',
+          cursor: draggingRef.current ? 'grabbing' : imgCursor,
+          ...(isAltFit ? { transform: 'scale(1.2)', transformOrigin: 'center center' } : {}),
+        }} />
         {!hovered && (
           <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
             <div style={{ width: 52, height: 52, borderRadius: '50%', background: 'rgba(255,255,255,0.15)', border: '1px solid rgba(255,255,255,0.25)', backdropFilter: 'blur(6px)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
@@ -132,7 +232,10 @@ export default function MediaCard({ item, onDelete, onCopy, textContents, onPrev
       );
     }
     if (displayType === 'link') return (
-      <iframe src={item.content} style={{ width: '100%', height: '100%', border: 'none', background: 'white', pointerEvents: 'none' }} title="Link Preview" />
+      <iframe ref={linkIframeRef} src={item.content} style={{
+        width: '100%', height: '100%', border: 'none', background: 'white',
+        pointerEvents: 'none', zoom: linkZoom,
+      }} title="Link Preview" />
     );
     return (
       <div style={{ width: '100%', height: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 10, background: tm.bg }}>
@@ -149,7 +252,10 @@ export default function MediaCard({ item, onDelete, onCopy, textContents, onPrev
     <div ref={ref} id={`history-${item.id}`} style={cardStyle} onMouseEnter={onEnter} onMouseLeave={onLeave} onMouseMove={onMove}>
       <div
         style={{ position: 'relative', height: previewH, overflow: 'hidden', cursor: selectMode ? 'default' : 'pointer' }}
-        onClick={() => selectMode ? onToggleSelect(item.id) : onPreview(item)}
+        onClick={() => {
+          if (didDragRef.current) { didDragRef.current = false; return; }
+          selectMode ? onToggleSelect(item.id) : onPreview(item);
+        }}
       >
         <div style={{ position: 'absolute', inset: 0, pointerEvents: selectMode ? 'none' : 'auto' }}>{renderPreview()}</div>
         {displayType !== 'text' && !hovered && (
@@ -178,20 +284,83 @@ export default function MediaCard({ item, onDelete, onCopy, textContents, onPrev
         padding: '10px 14px',
         borderTop: '1px solid var(--border-light)',
       }}>
+        {userEmail && (
+          <div style={{ fontSize: 10, color: 'var(--text-muted)', marginBottom: 2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+            {userRole === 'admin'
+              ? <svg width="12" height="12" viewBox="0 0 12 12" fill="currentColor" style={{verticalAlign:'middle',marginRight:2}}><path d="M6 1.5L7.5 4.5L10.5 3L9 6.5L10.5 10.5H1.5L3 6.5L1.5 3L4.5 4.5L6 1.5Z"/></svg>
+              : userRole === 'member'
+                ? <svg width="12" height="12" viewBox="0 0 12 12" fill="currentColor" style={{verticalAlign:'middle',marginRight:2}}><circle cx="6" cy="3.5" r="2.5"/><path d="M0 11.5C0 9 4 8 6 8s6 1 6 3.5"/></svg>
+                : ''}
+            {userEmail}
+          </div>
+        )}
         {(() => {
           const displayName = item.file_name || (item.type === 'text' ? (item.content.length > 40 ? item.content.slice(0, 40) + '…' : item.content) : (item.type === 'link' ? (() => { try { return new URL(item.content).hostname.replace('www.', '') } catch { return item.content } })() : null));
           return displayName ? (
             <div style={{ fontSize: 11, color: 'var(--text-muted-lighter)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', marginBottom: 4 }}>{displayName}</div>
           ) : null;
         })()}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8, overflow: 'hidden' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 8, overflow: 'hidden' }}>
           <span style={{ fontSize: 9, fontWeight: 700, letterSpacing: '0.1em', padding: '3px 8px', borderRadius: 6, background: tm.bg, color: tm.color, flexShrink: 0 }}>{tm.label}</span>
+          {(displayType === 'link') && (
+            <button
+              onClick={e => { e.stopPropagation(); setLinkViewMode(linkViewMode === 'desktop' ? 'mobile' : 'desktop'); }}
+              style={{
+                background: 'var(--card-action-bg)', border: 'none', cursor: 'pointer', padding: '3px 5px',
+                color: 'var(--card-action-color)', borderRadius: 6,
+                display: 'flex', alignItems: 'center', flexShrink: 0,
+              }}
+              title={linkViewMode === 'desktop' ? 'Switch to mobile view' : 'Switch to desktop view'}
+            >
+              {linkViewMode === 'desktop' ? (
+                <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <rect x="2" y="3" width="20" height="14" rx="2"/>
+                  <line x1="8" y1="21" x2="16" y2="21"/>
+                  <line x1="12" y1="17" x2="12" y2="21"/>
+                </svg>
+              ) : (
+                <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <rect x="5" y="2" width="14" height="20" rx="2"/>
+                  <line x1="12" y1="18" x2="12.01" y2="18"/>
+                </svg>
+              )}
+            </button>
+          )}
+          {(displayType === 'image' || displayType === 'video') && (
+            <button
+              onClick={e => { e.stopPropagation(); setImgFit(imgFit === 'cover' ? 'contain' : 'cover'); }}
+              style={{
+                background: 'var(--card-action-bg)', border: 'none', cursor: 'pointer', padding: '3px 5px',
+                color: 'var(--card-action-color)', borderRadius: 6,
+                display: 'flex', alignItems: 'center', flexShrink: 0,
+              }}
+              title={imgFit === 'cover' ? 'Switch to fit' : 'Switch to fill'}
+            >
+              {imgFit === 'cover' ? (
+                <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M3 7V5a2 2 0 012-2h2"/>
+                  <path d="M17 3h2a2 2 0 012 2v2"/>
+                  <path d="M21 17v2a2 2 0 01-2 2h-2"/>
+                  <path d="M7 21H5a2 2 0 01-2-2v-2"/>
+                  <line x1="7" y1="12" x2="17" y2="12"/>
+                </svg>
+              ) : (
+                <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <rect x="3" y="3" width="18" height="18" rx="2"/>
+                  <line x1="7" y1="12" x2="17" y2="12"/>
+                  <line x1="12" y1="7" x2="12" y2="17"/>
+                </svg>
+              )}
+            </button>
+          )}
           <span style={{ fontSize: 10, color: 'var(--text-muted-lightest)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
             {new Date(item.created_at).toLocaleString(undefined, { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
           </span>
           {item.edited_at && (
             <span style={{ fontSize: 10, color: 'var(--text-muted-lightest)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-              · edited {new Date(item.edited_at).toLocaleString(undefined, { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
+              · edited {roleMap && item.edited_by && roleMap[item.edited_by] === 'admin'
+  ? <svg width="10" height="10" viewBox="0 0 12 12" fill="currentColor" style={{verticalAlign:'middle',marginRight:2}}><path d="M6 1.5L7.5 4.5L10.5 3L9 6.5L10.5 10.5H1.5L3 6.5L1.5 3L4.5 4.5L6 1.5Z"/></svg>
+  : ''}{new Date(item.edited_at).toLocaleString(undefined, { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
             </span>
           )}
         </div>
