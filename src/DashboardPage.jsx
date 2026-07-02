@@ -1023,15 +1023,15 @@ export default function DashboardPage({ session, onSignOut, theme, toggleTheme }
                 <button
                   onClick={() => {
                     if (!selectMode) setSelectMode(true);
-                    if (selectedItems.size === history.length) setSelectedItems(new Set());
+                    if (history.length > 0 && selectedItems.size === history.length) setSelectedItems(new Set());
                     else setSelectedItems(new Set(history.map(h => h.id)));
                   }}
                   className="card-action"
-                  style={{ display: 'flex', alignItems: 'center', gap: 5, background: selectedItems.size === history.length ? 'var(--bg-button)' : 'var(--card-action-bg)', color: selectedItems.size === history.length ? 'var(--text-button)' : 'var(--text-muted)' }}
+                  style={{ display: 'flex', alignItems: 'center', gap: 5, background: history.length > 0 && selectedItems.size === history.length ? 'var(--bg-button)' : 'var(--card-action-bg)', color: history.length > 0 && selectedItems.size === history.length ? 'var(--text-button)' : 'var(--text-muted)' }}
                 >
                   <svg width="12" height="12" viewBox="0 0 16 16" fill="none">
                     <rect x="1" y="1" width="14" height="14" rx="2" stroke="currentColor" strokeWidth="1.3" fill="none" />
-                    {selectedItems.size === history.length && <path d="M5 8l2 2 4-4" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round" />}
+                    {history.length > 0 && selectedItems.size === history.length && <path d="M5 8l2 2 4-4" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round" />}
                   </svg>
                   All
                 </button>
