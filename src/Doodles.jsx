@@ -1,5 +1,4 @@
 import { useState, useEffect, useRef } from 'react';
-//import
 export function Accent({ className, children, x, y, factor = 1 }) {
   const ref = useRef(null);
   const [pos, setPos] = useState({ x: 0, y: 0 });
